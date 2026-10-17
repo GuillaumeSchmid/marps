@@ -2,7 +2,7 @@
 
 use super::app::ScaleViewApp;
 use super::theme::{self, CARD, TEXT_DIM, caption};
-use crate::settings::{DEFAULT_COLORS, LabelMode};
+use crate::settings::{DEFAULT_COLORS, LabelMode, NeckWood};
 use crate::theory::caged::CagedShape;
 use crate::theory::chord::{CHORDS, ChordCategory};
 use crate::theory::engine::ViewKind;
@@ -161,10 +161,15 @@ pub fn options_bar(app: &mut ScaleViewApp, ui: &mut Ui) {
             });
         });
         card(ui, |ui| {
-            caption(ui, "Tuning");
+            caption(ui, "Tuning / neck");
             ComboBox::from_id_salt("tuning").selected_text(&app.settings.tuning).show_ui(ui, |ui| {
                 for t in TUNINGS {
                     ui.selectable_value(&mut app.settings.tuning, t.name.to_string(), t.name);
+                }
+            });
+            ComboBox::from_id_salt("neck").selected_text(app.settings.neck.name()).show_ui(ui, |ui| {
+                for w in NeckWood::ALL {
+                    ui.selectable_value(&mut app.settings.neck, w, w.name());
                 }
             });
             ui.toggle_value(&mut app.show_colors, "🎨 Colours");

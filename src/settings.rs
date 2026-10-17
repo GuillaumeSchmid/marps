@@ -17,6 +17,24 @@ pub enum LabelMode {
     Notes,
 }
 
+/// Fingerboard wood, which sets the neck's look.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum NeckWood {
+    Rosewood,
+    Maple,
+}
+
+impl NeckWood {
+    pub const ALL: [NeckWood; 2] = [NeckWood::Rosewood, NeckWood::Maple];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            NeckWood::Rosewood => "Rosewood",
+            NeckWood::Maple => "Maple",
+        }
+    }
+}
+
 /// One colour per semitone above the root (1, b2, 2, b3, 3, 4, #4, 5, b6, 6, b7, 7).
 pub const DEFAULT_COLORS: [[u8; 3]; 12] = [
     [0xE5, 0x39, 0x35], // 1    red
@@ -39,6 +57,7 @@ pub struct Settings {
     pub selection: Selection,
     pub tuning: String,
     pub label_mode: LabelMode,
+    pub neck: NeckWood,
     pub show_scale: bool,
     pub colors: [[u8; 3]; 12],
     pub notes_per_sec: f32,
@@ -57,6 +76,7 @@ impl Default for Settings {
             },
             tuning: "E standard".into(),
             label_mode: LabelMode::Degrees,
+            neck: NeckWood::Rosewood,
             show_scale: true,
             colors: DEFAULT_COLORS,
             notes_per_sec: 5.0,

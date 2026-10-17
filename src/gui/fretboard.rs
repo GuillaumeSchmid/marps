@@ -2,7 +2,7 @@
 //! and reports which position was clicked. Pure view — owns no state.
 
 use super::theme::{self, ACCENT, RECORD, TEXT, TEXT_DIM, text_on};
-use crate::settings::LabelMode;
+use crate::settings::{LabelMode, NeckWood};
 use crate::theory::Pos;
 use crate::theory::engine::{FretNote, FretboardModel, Role};
 use crate::theory::tuning::{FRETS, Tuning, pc_name};
@@ -17,18 +17,29 @@ pub struct Band {
     pub active: bool,
 }
 
+/// A chord voicing drawn as a connected shape, so a chord reads as a chord.
+pub struct ChordShape {
+    pub label: &'static str,
+    pub lo: u8,
+    pub positions: Vec<Pos>,
+}
+
 pub struct FretboardView<'a> {
     pub model: &'a FretboardModel,
     pub tuning: &'a Tuning,
     pub colors: &'a [[u8; 3]; 12],
     pub label_mode: LabelMode,
+    pub neck: NeckWood,
     pub show_scale: bool,
     /// Pitch class highlighted everywhere on the neck.
     pub highlight_pc: Option<u8>,
     /// The exact position the highlight was picked from.
     pub selected: Option<Pos>,
-    /// When set, notes outside it are drawn as faint ghosts.
+    /// When set, notes outside it are drawn as faint ghosts (or hidden).
     pub focus: Option<&'a HashSet<Pos>>,
+    /// Hide out-of-focus tones instead of ghosting them.
+    pub hide_unfocused: bool,
+    pub shapes: &'a [ChordShape],
     /// Positions picked while recording a form.
     pub marked: Option<&'a BTreeSet<Pos>>,
     pub bands: &'a [Band],
@@ -124,8 +135,9 @@ impl FretboardView<'_> {
 
         let painter = ui.painter_at(rect);
         self.paint_bands(&painter, &g);
-        paint_neck(&painter, &g, self.tuning);
+        paint_neck(&painter, &g, self.tuning, &NeckLook::of(self.neck));
         self.paint_windows(&painter, &g);
+        self.paint_shapes(&painter, &g);
 
         let hovered = response.hover_pos().and_then(|p| g.hit(p));
         let time = ui.input(|i| i.time);
@@ -168,6 +180,9 @@ impl FretboardView<'_> {
         let in_focus = self.focus.is_none_or(|f| f.contains(&n.pos));
         let scale_only = n.role == Role::ScaleOnly;
         if scale_only && !self.show_scale && !recording {
+            return None;
+        }
+        if !in_focus && !scale_only && self.hide_unfocused && !recording {
             return None;
         }
         let (alpha, size) = match (scale_only, in_focus) {
@@ -258,6 +273,27 @@ impl FretboardView<'_> {
         }
     }
 
+    /// Join each voicing's notes with a ribbon in its CAGED colour and mark
+    /// unplayed strings with a cross at the window's edge.
+    fn paint_shapes(&self, painter: &egui::Painter, g: &Geometry) {
+        for shape in self.shapes {
+            let col = shape_color(shape.label);
+            let mut pts: Vec<Pos> = shape.positions.clone();
+            pts.sort_by_key(|p| p.string);
+            let line: Vec<Pos2> = pts.iter().map(|&p| g.center(p)).collect();
+            painter.add(egui::Shape::line(line, Stroke::new(g.radius * 0.8, col.gamma_multiply(0.45))));
+            let x = g.window_x(shape.lo, shape.lo).0 + 7.0;
+            for s in (0..g.strings as u8).filter(|s| !pts.iter().any(|p| p.string == *s)) {
+                let c = pos2(x, g.string_y(s));
+                let d = 5.5;
+                let stroke = Stroke::new(3.0, col.gamma_multiply(0.9));
+                painter.circle_filled(c, d + 3.0, Color32::from_black_alpha(70));
+                painter.line_segment([c + vec2(-d, -d), c + vec2(d, d)], stroke);
+                painter.line_segment([c + vec2(-d, d), c + vec2(d, -d)], stroke);
+            }
+        }
+    }
+
     /// Light the active windows on the neck itself (drawn over the wood, under the notes).
     fn paint_windows(&self, painter: &egui::Painter, g: &Geometry) {
         for b in self.bands.iter().filter(|b| b.active) {
@@ -276,11 +312,51 @@ struct Look {
     size: f32,
 }
 
-fn paint_neck(painter: &egui::Painter, g: &Geometry, tuning: &Tuning) {
+/// Colours of the fingerboard materials for one wood.
+struct NeckLook {
+    /// Board colour at the edges and in the middle (slightly lighter there).
+    edge: Color32,
+    mid: Color32,
+    grain: [u8; 3],
+    grain_alpha: u8,
+    inlay: Color32,
+    nut: Color32,
+    plain: Color32,
+    wound: Color32,
+}
+
+impl NeckLook {
+    fn of(wood: NeckWood) -> Self {
+        match wood {
+            NeckWood::Rosewood => NeckLook {
+                edge: Color32::from_rgb(0x3A, 0x24, 0x17),
+                mid: Color32::from_rgb(0x4A, 0x2F, 0x1F),
+                grain: [0, 0, 0],
+                grain_alpha: 10,
+                inlay: Color32::from_rgba_unmultiplied(0xE8, 0xE2, 0xD0, 170),
+                nut: Color32::from_rgb(0xEE, 0xE6, 0xD2),
+                plain: Color32::from_rgb(0xDC, 0xDF, 0xE3),
+                wound: Color32::from_rgb(0xC9, 0xA8, 0x72),
+            },
+            // Pale, lacquered maple with black dots and a black nut; strings
+            // darker so they still read against the light wood.
+            NeckWood::Maple => NeckLook {
+                edge: Color32::from_rgb(0xC8, 0x9B, 0x5E),
+                mid: Color32::from_rgb(0xE2, 0xBC, 0x82),
+                grain: [0x8A, 0x5A, 0x2B],
+                grain_alpha: 22,
+                inlay: Color32::from_rgb(0x1E, 0x1A, 0x16),
+                nut: Color32::from_rgb(0x22, 0x20, 0x1E),
+                plain: Color32::from_rgb(0x8C, 0x92, 0x99),
+                wound: Color32::from_rgb(0x9A, 0x74, 0x3E),
+            },
+        }
+    }
+}
+
+fn paint_neck(painter: &egui::Painter, g: &Geometry, tuning: &Tuning, look: &NeckLook) {
     let b = g.board;
-    // Rosewood, slightly lighter towards the middle.
-    let top = Color32::from_rgb(0x3A, 0x24, 0x17);
-    let mid = Color32::from_rgb(0x4A, 0x2F, 0x1F);
+    let (top, mid) = (look.edge, look.mid);
     let mut mesh = Mesh::default();
     for (i, (y, c)) in [(b.top(), top), (b.center().y, mid), (b.bottom(), top)].into_iter().enumerate() {
         mesh.colored_vertex(pos2(b.left(), y), c);
@@ -300,10 +376,11 @@ fn paint_neck(painter: &egui::Painter, g: &Geometry, tuning: &Tuning) {
         seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
         let x0 = b.left() + (seed >> 8) as f32 / (1u32 << 24) as f32 * b.width() * 0.8;
         let len = 60.0 + (seed % 400) as f32;
-        let a = 10 + (seed % 14) as u8;
+        let a = look.grain_alpha + (seed % 14) as u8;
+        let [r, gr, bl] = look.grain;
         painter.line_segment(
             [pos2(x0, y), pos2((x0 + len).min(b.right()), y + ((seed % 5) as f32 - 2.0) * 0.4)],
-            Stroke::new(1.0, Color32::from_black_alpha(a)),
+            Stroke::new(1.0, Color32::from_rgba_unmultiplied(r, gr, bl, a)),
         );
     }
     // Binding.
@@ -311,15 +388,20 @@ fn paint_neck(painter: &egui::Painter, g: &Geometry, tuning: &Tuning) {
         painter.line_segment([pos2(b.left(), y), pos2(b.right(), y)], Stroke::new(2.0, Color32::from_rgb(0xD8, 0xCF, 0xB8)));
     }
     // Inlays.
-    let pearl = Color32::from_rgba_unmultiplied(0xE8, 0xE2, 0xD0, 170);
+    let pearl = look.inlay;
+    // Always between two strings, never under a note: single dots in the middle
+    // gap, octave doubles about a third of the way in from each edge.
+    let gap_y = |k: usize| b.top() + g.spacing * k as f32;
+    let n = g.strings;
     for f in INLAYS {
         let x = g.note_x(f);
         let r = (g.spacing * 0.2).min(9.0);
         if f % 12 == 0 {
-            painter.circle_filled(pos2(x, b.top() + b.height() * 0.25), r, pearl);
-            painter.circle_filled(pos2(x, b.top() + b.height() * 0.75), r, pearl);
+            let k = (n as f32 / 3.0).round() as usize;
+            painter.circle_filled(pos2(x, gap_y(k)), r, pearl);
+            painter.circle_filled(pos2(x, gap_y(n - k)), r, pearl);
         } else {
-            painter.circle_filled(pos2(x, b.center().y), r, pearl);
+            painter.circle_filled(pos2(x, gap_y(n / 2)), r, pearl);
         }
     }
     // Frets: nickel with a highlight.
@@ -333,15 +415,14 @@ fn paint_neck(painter: &egui::Painter, g: &Geometry, tuning: &Tuning) {
     }
     // Nut (bone).
     let nut = Rect::from_min_max(pos2(g.nut_x - 7.0, b.top() - 1.0), pos2(g.nut_x, b.bottom() + 1.0));
-    painter.rect_filled(nut, CornerRadius::same(2), Color32::from_rgb(0xEE, 0xE6, 0xD2));
+    painter.rect_filled(nut, CornerRadius::same(2), look.nut);
     // Strings: wound strings bronze, plain strings steel; thicker toward the bass.
-    let n = g.strings;
     for s in 0..n as u8 {
         let y = g.string_y(s);
         let t = s as f32 / (n as f32 - 1.0);
         let width = 3.4 - 2.3 * t;
         let wound = (s as usize) < n - 2;
-        let col = if wound { Color32::from_rgb(0xC9, 0xA8, 0x72) } else { Color32::from_rgb(0xDC, 0xDF, 0xE3) };
+        let col = if wound { look.wound } else { look.plain };
         let x0 = g.nut_x - OPEN_COL;
         painter.line_segment([pos2(x0, y + 1.6), pos2(b.right(), y + 1.6)], Stroke::new(width, Color32::from_black_alpha(90)));
         painter.line_segment([pos2(x0, y), pos2(b.right(), y)], Stroke::new(width, col));

@@ -1,7 +1,7 @@
 //! Application state and top-level layout. Glues the ScaleEngine (data), the
 //! AudioEngine (sound), persistence and the widgets together.
 
-use super::fretboard::{Band, FretboardView};
+use super::fretboard::{Band, ChordShape, FretboardView};
 use super::theme::{self, BG, PANEL};
 use super::{controls, forms_panel, header};
 use crate::audio::{AudioEngine, PhraseNote};
@@ -108,7 +108,12 @@ impl ScaleViewApp {
     fn refresh(&mut self) {
         let wanted = (self.settings.selection.clone(), self.settings.tuning.clone());
         if wanted != self.model_for {
+            let entering_chord = wanted.0.kind == ViewKind::Chord && self.model_for.0.kind != ViewKind::Chord;
             self.model = self.engine.compute(&wanted.0, self.tuning());
+            // A chord reads best one shape at a time; "All" stays one click away.
+            if entering_chord && self.caged.is_none() {
+                self.caged = self.model.caged.first().map(|c| c.shape);
+            }
             self.model_for = wanted;
             if self.model.caged.is_empty() {
                 self.caged = None;
@@ -271,6 +276,20 @@ impl eframe::App for ScaleViewApp {
             .iter()
             .map(|c| Band { label: c.shape.name(), lo: c.lo, hi: c.hi, active: self.caged == Some(c.shape) })
             .collect();
+        // A chord is shown as its voicings only; forms and recording show everything.
+        let chord_shapes = self.settings.selection.kind == ViewKind::Chord
+            && self.recording.is_none()
+            && self.active_form.is_none();
+        let shapes: Vec<ChordShape> = if chord_shapes {
+            self.model
+                .caged
+                .iter()
+                .filter(|c| self.caged.is_none_or(|s| c.shape == s))
+                .map(|c| ChordShape { label: c.shape.name(), lo: c.lo, positions: c.voicing.clone() })
+                .collect()
+        } else {
+            Vec::new()
+        };
 
         let central = Frame::new().fill(BG).inner_margin(Margin::symmetric(18, 12));
         egui::CentralPanel::default().frame(central).show(ui, |ui| {
@@ -280,10 +299,13 @@ impl eframe::App for ScaleViewApp {
                 tuning: self.tuning(),
                 colors: &self.settings.colors,
                 label_mode: self.settings.label_mode,
+                neck: self.settings.neck,
                 show_scale: self.settings.show_scale,
                 highlight_pc: self.highlight.map(|h| h.0),
                 selected: self.highlight.and_then(|h| h.1),
                 focus: focus.as_ref(),
+                hide_unfocused: chord_shapes,
+                shapes: &shapes,
                 marked: self.recording.as_ref().map(|r| &r.positions),
                 bands: &bands,
                 sounding: &sounding,
