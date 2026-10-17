@@ -31,6 +31,7 @@ pub struct FretboardView<'a> {
     pub label_mode: LabelMode,
     pub neck: NeckWood,
     pub show_scale: bool,
+    pub colored_notes: bool,
     /// Pitch class highlighted everywhere on the neck.
     pub highlight_pc: Option<u8>,
     /// The exact position the highlight was picked from.
@@ -197,7 +198,11 @@ impl FretboardView<'_> {
     fn paint_note(&self, painter: &egui::Painter, g: &Geometry, n: &FretNote, look: Look, time: f64) {
         let c = g.center(n.pos);
         let r = g.radius * look.size;
-        let base = theme::rgb(self.colors[n.interval.pc() as usize]);
+        let base = if self.colored_notes {
+            theme::rgb(self.colors[n.interval.pc() as usize])
+        } else {
+            NeckLook::of(self.neck).marker
+        };
         let highlighted = self.highlight_pc == Some(n.midi % 12);
         let sounding = self.sounding.contains(&n.pos);
         let alpha = if highlighted || sounding { look.alpha.max(0.85) } else { look.alpha };
@@ -321,6 +326,8 @@ struct NeckLook {
     grain_alpha: u8,
     inlay: Color32,
     nut: Color32,
+    /// Note colour when degree colours are switched off.
+    marker: Color32,
     plain: Color32,
     wound: Color32,
 }
@@ -335,6 +342,7 @@ impl NeckLook {
                 grain_alpha: 10,
                 inlay: Color32::from_rgba_unmultiplied(0xE8, 0xE2, 0xD0, 170),
                 nut: Color32::from_rgb(0xEE, 0xE6, 0xD2),
+                marker: Color32::from_rgb(0xF4, 0xF4, 0xF2),
                 plain: Color32::from_rgb(0xDC, 0xDF, 0xE3),
                 wound: Color32::from_rgb(0xC9, 0xA8, 0x72),
             },
@@ -347,6 +355,7 @@ impl NeckLook {
                 grain_alpha: 22,
                 inlay: Color32::from_rgb(0x1E, 0x1A, 0x16),
                 nut: Color32::from_rgb(0x22, 0x20, 0x1E),
+                marker: Color32::from_rgb(0x14, 0x14, 0x14),
                 plain: Color32::from_rgb(0x8C, 0x92, 0x99),
                 wound: Color32::from_rgb(0x9A, 0x74, 0x3E),
             },

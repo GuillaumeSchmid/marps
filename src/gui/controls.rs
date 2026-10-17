@@ -149,6 +149,8 @@ pub fn options_bar(app: &mut ScaleViewApp, ui: &mut Ui) {
                 app.settings.selection.kind != ViewKind::Scale,
                 egui::Checkbox::new(&mut app.settings.show_scale, "Underlying scale"),
             );
+            ui.checkbox(&mut app.settings.colored_notes, "Coloured notes")
+                .on_hover_text("Off: plain white notes on rosewood, black on maple");
         });
         card(ui, |ui| {
             caption(ui, "CAGED");

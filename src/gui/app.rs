@@ -301,6 +301,7 @@ impl eframe::App for ScaleViewApp {
                 label_mode: self.settings.label_mode,
                 neck: self.settings.neck,
                 show_scale: self.settings.show_scale,
+                colored_notes: self.settings.colored_notes,
                 highlight_pc: self.highlight.map(|h| h.0),
                 selected: self.highlight.and_then(|h| h.1),
                 focus: focus.as_ref(),

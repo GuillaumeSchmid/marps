@@ -59,6 +59,8 @@ pub struct Settings {
     pub label_mode: LabelMode,
     pub neck: NeckWood,
     pub show_scale: bool,
+    /// Off: every note in one neutral colour that contrasts with the neck wood.
+    pub colored_notes: bool,
     pub colors: [[u8; 3]; 12],
     pub notes_per_sec: f32,
     /// Last form chosen for each selection key, so forms come back as they were left.
@@ -78,6 +80,7 @@ impl Default for Settings {
             label_mode: LabelMode::Degrees,
             neck: NeckWood::Rosewood,
             show_scale: true,
+            colored_notes: true,
             colors: DEFAULT_COLORS,
             notes_per_sec: 5.0,
             last_form: BTreeMap::new(),
