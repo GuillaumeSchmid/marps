@@ -2,6 +2,7 @@
 
 mod app;
 mod controls;
+mod file_menu;
 mod forms_panel;
 mod fretboard;
 mod header;

@@ -3,7 +3,7 @@
 
 use super::fretboard::{Band, ChordShape, FretboardView};
 use super::theme::{self, BG, PANEL};
-use super::{controls, forms_panel, header};
+use super::{controls, file_menu, forms_panel, header};
 use crate::audio::{AudioEngine, PhraseNote};
 use crate::forms::{Form, FormLibrary};
 use crate::settings::Settings;
@@ -34,6 +34,7 @@ pub struct ScaleViewApp {
     pub settings: Settings,
     saved_settings: Settings,
     pub forms: FormLibrary,
+    pub file_menu: file_menu::FileMenu,
     pub model: FretboardModel,
     model_for: (Selection, String),
     /// Highlighted pitch class, and the position it was picked from.
@@ -63,6 +64,7 @@ impl ScaleViewApp {
             model_for: (settings.selection.clone(), settings.tuning.clone()),
             settings,
             forms: FormLibrary::load(),
+            file_menu: file_menu::FileMenu::new(),
             model,
             highlight: None,
             caged: None,
@@ -253,6 +255,7 @@ impl eframe::App for ScaleViewApp {
         let ctx = ui.ctx().clone();
         self.shortcuts(&ctx);
         self.refresh();
+        self.file_menu.update(&ctx, &mut self.forms);
 
         let bar = Frame::new().fill(PANEL).inner_margin(Margin::symmetric(16, 10));
         egui::Panel::top("selection").frame(bar).show(ui, |ui| controls::selection_bar(self, ui));
