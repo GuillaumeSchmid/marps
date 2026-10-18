@@ -22,6 +22,7 @@ fn card<R>(ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> R {
 
 pub fn selection_bar(app: &mut ScaleViewApp, ui: &mut Ui) {
     ui.horizontal_wrapped(|ui| {
+        app.file_menu.menu_button(ui);
         ui.label(RichText::new("ScaleView").strong().size(18.0).color(theme::ACCENT));
         ui.add_space(10.0);
         let sel = &mut app.settings.selection;

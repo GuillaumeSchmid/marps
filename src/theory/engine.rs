@@ -153,7 +153,7 @@ impl ScaleEngine {
         let mut notes = Vec::new();
         for string in 0..tuning.string_count() as u8 {
             for fret in 0..=FRETS {
-                let midi = tuning.midi(string, fret);
+                let Some(midi) = tuning.midi(string, fret) else { continue };
                 let pc = midi % 12;
                 let pos = Pos::new(string, fret);
                 if let Some(&(note, interval)) = tones.iter().find(|(n, _)| n.pc() == pc) {
@@ -235,7 +235,7 @@ impl ScaleEngine {
     /// up and back down in pitch order at `notes_per_sec`.
     pub fn playback(&self, kind: ViewKind, positions: &[Pos], tuning: &Tuning, notes_per_sec: f32) -> Vec<PlayStep> {
         let mut notes: Vec<(Pos, u8)> =
-            positions.iter().map(|&p| (p, tuning.midi(p.string, p.fret))).collect();
+            positions.iter().filter_map(|&p| Some((p, tuning.midi(p.string, p.fret)?))).collect();
         notes.sort_by_key(|&(p, m)| (m, p.string));
         notes.dedup_by_key(|(_, m)| *m);
         if kind == ViewKind::Chord {

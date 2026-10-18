@@ -26,8 +26,8 @@ impl Tuning {
         self.open.len()
     }
 
-    pub fn midi(&self, string: u8, fret: u8) -> u8 {
-        self.open[string as usize] + fret
+    pub fn midi(&self, string: u8, fret: u8) -> Option<u8> {
+        Some(self.open.get(string as usize)? + fret)
     }
 
     /// Index of the string playing the role of the low E in the CAGED system,

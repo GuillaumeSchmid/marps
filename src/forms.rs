@@ -6,6 +6,9 @@ use crate::theory::Pos;
 use crate::theory::tuning::FRETS;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use std::io::{Read, Write};
+use std::path::Path;
+use zip::write::SimpleFileOptions;
 
 const FILE: &str = "forms.json";
 
@@ -92,6 +95,64 @@ impl FormLibrary {
         }
         self.save();
     }
+
+    /// Move the form at `from` to `to` within one key's list, then persist.
+    pub fn reorder(&mut self, key: &str, from: usize, to: usize) {
+        self.reorder_in_memory(key, from, to);
+        self.save();
+    }
+
+    fn reorder_in_memory(&mut self, key: &str, from: usize, to: usize) {
+        if let Some(list) = self.forms.get_mut(key)
+            && from < list.len()
+            && to < list.len()
+            && from != to
+        {
+            let item = list.remove(from);
+            list.insert(to, item);
+        }
+    }
+
+    /// Merge another library in: a form with the same name in the same key is
+    /// replaced in place by the incoming one; anything new is appended.
+    pub fn merge(&mut self, other: FormLibrary) {
+        self.merge_in_memory(other);
+        self.save();
+    }
+
+    fn merge_in_memory(&mut self, other: FormLibrary) {
+        for (key, incoming) in other.forms {
+            let list = self.forms.entry(key).or_default();
+            for form in incoming {
+                match list.iter_mut().find(|f| f.name == form.name) {
+                    Some(slot) => *slot = form,
+                    None => list.push(form),
+                }
+            }
+        }
+    }
+
+    /// Serialize to JSON and write it as `forms.json` inside a new zip archive at `path`.
+    pub fn export_zip(&self, path: &Path) -> std::io::Result<()> {
+        let json = serde_json::to_string_pretty(self).map_err(std::io::Error::other)?;
+        let file = std::fs::File::create(path)?;
+        let mut zip = zip::ZipWriter::new(file);
+        let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+        zip.start_file("forms.json", options)?;
+        zip.write_all(json.as_bytes())?;
+        zip.finish()?;
+        Ok(())
+    }
+
+    /// Read a zip archive at `path` and deserialize its `forms.json` entry.
+    pub fn import_zip(path: &Path) -> std::io::Result<FormLibrary> {
+        let file = std::fs::File::open(path)?;
+        let mut archive = zip::ZipArchive::new(file)?;
+        let mut entry = archive.by_name("forms.json")?;
+        let mut s = String::new();
+        entry.read_to_string(&mut s)?;
+        serde_json::from_str(&s).map_err(std::io::Error::other)
+    }
 }
 
 #[cfg(test)]
@@ -110,5 +171,64 @@ mod tests {
         let low = Form { name: "y".into(), root_pc: 0, positions: vec![Pos::new(0, 0)] };
         // Can't go below the nut, so B is played 11 frets up.
         assert_eq!(low.transposed(11), [Pos::new(0, 11)]);
+    }
+
+    #[test]
+    fn reorder_moves_item_within_key() {
+        let key = "standard|Cmajor";
+        let mk = |n: &str| Form { name: n.into(), root_pc: 0, positions: vec![] };
+        let mut lib = FormLibrary {
+            forms: BTreeMap::from([(key.to_string(), vec![mk("a"), mk("b"), mk("c")])]),
+        };
+        lib.reorder_in_memory(key, 0, 2);
+        let names: Vec<_> = lib.forms(key).iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(names, ["b", "c", "a"]);
+    }
+
+    #[test]
+    fn merge_imported_form_replaces_same_name_in_same_key() {
+        let key = "standard|Cmajor";
+        let mut lib = FormLibrary {
+            forms: BTreeMap::from([(
+                key.to_string(),
+                vec![
+                    Form { name: "shape1".into(), root_pc: 0, positions: vec![Pos::new(0, 0)] },
+                    Form { name: "shape2".into(), root_pc: 0, positions: vec![] },
+                ],
+            )]),
+        };
+        let other = FormLibrary {
+            forms: BTreeMap::from([(
+                key.to_string(),
+                vec![
+                    Form { name: "shape1".into(), root_pc: 0, positions: vec![Pos::new(1, 1)] },
+                    Form { name: "shape3".into(), root_pc: 0, positions: vec![] },
+                ],
+            )]),
+        };
+        lib.merge_in_memory(other);
+        let forms = lib.forms(key);
+        assert_eq!(forms.len(), 3);
+        assert_eq!(forms[0].name, "shape1");
+        assert_eq!(forms[0].positions, vec![Pos::new(1, 1)]); // imported wins, replaced in place
+        assert_eq!(forms[1].name, "shape2");
+        assert_eq!(forms[2].name, "shape3"); // new form appended
+    }
+
+    #[test]
+    fn export_then_import_round_trips() {
+        let key = "standard|Cmajor";
+        let lib = FormLibrary {
+            forms: BTreeMap::from([(
+                key.to_string(),
+                vec![Form { name: "shape1".into(), root_pc: 0, positions: vec![Pos::new(2, 3)] }],
+            )]),
+        };
+        let path =
+            std::env::temp_dir().join(format!("scaleview_export_test_{}.svforms", std::process::id()));
+        lib.export_zip(&path).unwrap();
+        let imported = FormLibrary::import_zip(&path).unwrap();
+        std::fs::remove_file(&path).unwrap();
+        assert_eq!(imported.forms(key), lib.forms(key));
     }
 }
