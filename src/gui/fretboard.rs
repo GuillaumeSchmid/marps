@@ -107,6 +107,11 @@ impl Geometry {
     }
 }
 
+fn lerp_color(a: Color32, b: Color32, t: f32) -> Color32 {
+    let ch = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * t.clamp(0.0, 1.0)).round() as u8;
+    Color32::from_rgb(ch(a.r(), b.r()), ch(a.g(), b.g()), ch(a.b(), b.b()))
+}
+
 fn shape_color(label: &str) -> Color32 {
     match label {
         "C" => Color32::from_rgb(0x4F, 0xC3, 0xF7),
@@ -206,14 +211,14 @@ impl FretboardView<'_> {
         let highlighted = self.highlight_pc == Some(n.midi % 12);
         let sounding = self.sounding.contains(&n.pos);
         let alpha = if highlighted || sounding { look.alpha.max(0.85) } else { look.alpha };
-        let fill = base.gamma_multiply(alpha);
+        let pulse = 0.5 + 0.5 * (time * 12.0).sin() as f32;
+        let fill = if sounding { lerp_color(base, ACCENT, pulse).gamma_multiply(alpha) } else { base.gamma_multiply(alpha) };
 
         if highlighted {
             painter.circle_filled(c, r + 7.0, Color32::from_white_alpha(28));
             painter.circle_filled(c, r + 4.0, Color32::from_white_alpha(45));
         }
         if sounding {
-            let pulse = 0.5 + 0.5 * (time * 12.0).sin() as f32;
             painter.circle_filled(c, r + 6.0 + 3.0 * pulse, ACCENT.gamma_multiply(0.35));
         }
 
