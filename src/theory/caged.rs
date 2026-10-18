@@ -90,7 +90,7 @@ fn best_voicing(
     quality: &ChordQuality,
 ) -> Vec<Pos> {
     let tone_of = |string: usize, fret: u8| -> Option<usize> {
-        let pc = (tuning.midi(string as u8, fret) as i16 - root_pc as i16).rem_euclid(12) as u8;
+        let pc = (tuning.midi(string as u8, fret)? as i16 - root_pc as i16).rem_euclid(12) as u8;
         tones.iter().position(|t| t.pc() == pc)
     };
     // Candidate frets for each string above the root string (None = muted).

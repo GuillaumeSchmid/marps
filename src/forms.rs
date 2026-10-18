@@ -103,11 +103,13 @@ impl FormLibrary {
     }
 
     fn reorder_in_memory(&mut self, key: &str, from: usize, to: usize) {
-        if let Some(list) = self.forms.get_mut(key) {
-            if from < list.len() && to < list.len() && from != to {
-                let item = list.remove(from);
-                list.insert(to, item);
-            }
+        if let Some(list) = self.forms.get_mut(key)
+            && from < list.len()
+            && to < list.len()
+            && from != to
+        {
+            let item = list.remove(from);
+            list.insert(to, item);
         }
     }
 
@@ -222,7 +224,8 @@ mod tests {
                 vec![Form { name: "shape1".into(), root_pc: 0, positions: vec![Pos::new(2, 3)] }],
             )]),
         };
-        let path = std::env::temp_dir().join("scaleview_export_test.svforms");
+        let path =
+            std::env::temp_dir().join(format!("scaleview_export_test_{}.svforms", std::process::id()));
         lib.export_zip(&path).unwrap();
         let imported = FormLibrary::import_zip(&path).unwrap();
         std::fs::remove_file(&path).unwrap();

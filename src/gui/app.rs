@@ -180,7 +180,7 @@ impl ScaleViewApp {
             }
             return;
         }
-        let midi = self.tuning().midi(pos.string, pos.fret);
+        let Some(midi) = self.tuning().midi(pos.string, pos.fret) else { return };
         let pc = midi % 12;
         self.highlight = match self.highlight {
             Some((h, Some(p))) if h == pc && p == pos => None,
