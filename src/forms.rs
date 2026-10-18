@@ -6,6 +6,9 @@ use crate::theory::Pos;
 use crate::theory::tuning::FRETS;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use std::io::{Read, Write};
+use std::path::Path;
+use zip::write::SimpleFileOptions;
 
 const FILE: &str = "forms.json";
 
@@ -126,6 +129,28 @@ impl FormLibrary {
             }
         }
     }
+
+    /// Serialize to JSON and write it as `forms.json` inside a new zip archive at `path`.
+    pub fn export_zip(&self, path: &Path) -> std::io::Result<()> {
+        let json = serde_json::to_string_pretty(self).map_err(std::io::Error::other)?;
+        let file = std::fs::File::create(path)?;
+        let mut zip = zip::ZipWriter::new(file);
+        let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+        zip.start_file("forms.json", options)?;
+        zip.write_all(json.as_bytes())?;
+        zip.finish()?;
+        Ok(())
+    }
+
+    /// Read a zip archive at `path` and deserialize its `forms.json` entry.
+    pub fn import_zip(path: &Path) -> std::io::Result<FormLibrary> {
+        let file = std::fs::File::open(path)?;
+        let mut archive = zip::ZipArchive::new(file)?;
+        let mut entry = archive.by_name("forms.json")?;
+        let mut s = String::new();
+        entry.read_to_string(&mut s)?;
+        serde_json::from_str(&s).map_err(std::io::Error::other)
+    }
 }
 
 #[cfg(test)]
@@ -186,5 +211,21 @@ mod tests {
         assert_eq!(forms[0].positions, vec![Pos::new(1, 1)]); // imported wins, replaced in place
         assert_eq!(forms[1].name, "shape2");
         assert_eq!(forms[2].name, "shape3"); // new form appended
+    }
+
+    #[test]
+    fn export_then_import_round_trips() {
+        let key = "standard|Cmajor";
+        let lib = FormLibrary {
+            forms: BTreeMap::from([(
+                key.to_string(),
+                vec![Form { name: "shape1".into(), root_pc: 0, positions: vec![Pos::new(2, 3)] }],
+            )]),
+        };
+        let path = std::env::temp_dir().join("scaleview_export_test.svforms");
+        lib.export_zip(&path).unwrap();
+        let imported = FormLibrary::import_zip(&path).unwrap();
+        std::fs::remove_file(&path).unwrap();
+        assert_eq!(imported.forms(key), lib.forms(key));
     }
 }
