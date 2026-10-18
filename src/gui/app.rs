@@ -40,7 +40,7 @@ pub struct ScaleViewApp {
     /// Highlighted pitch class, and the position it was picked from.
     pub highlight: Option<(u8, Option<Pos>)>,
     pub caged: Option<CagedShape>,
-    pub active_form: Option<usize>,
+    pub active_forms: BTreeSet<usize>,
     pub form_key: String,
     pub recording: Option<Recording>,
     playing: Option<Playing>,
@@ -68,7 +68,7 @@ impl ScaleViewApp {
             model,
             highlight: None,
             caged: None,
-            active_form: None,
+            active_forms: BTreeSet::new(),
             form_key: String::new(),
             recording: None,
             playing: None,
@@ -87,22 +87,46 @@ impl ScaleViewApp {
         self.forms.forms(&self.form_key)
     }
 
-    /// Positions of the active form, transposed to the current root.
+    /// Union of every active form's positions, transposed to the current root.
     pub fn form_positions(&self) -> Option<Vec<Pos>> {
-        let form = self.forms_here().get(self.active_form?)?;
-        Some(form.transposed(self.settings.selection.root.pc()))
+        if self.active_forms.is_empty() {
+            return None;
+        }
+        let root_pc = self.settings.selection.root.pc();
+        let forms_here = self.forms_here();
+        let mut positions: BTreeSet<Pos> = BTreeSet::new();
+        for &i in &self.active_forms {
+            if let Some(form) = forms_here.get(i) {
+                positions.extend(form.transposed(root_pc));
+            }
+        }
+        Some(positions.into_iter().collect())
     }
 
-    pub fn set_active_form(&mut self, index: Option<usize>) {
-        self.active_form = index;
-        match index.and_then(|i| self.forms_here().get(i)) {
-            Some(f) => {
-                let name = f.name.clone();
-                self.settings.last_form.insert(self.form_key.clone(), name);
-            }
-            None => {
-                self.settings.last_form.remove(&self.form_key);
-            }
+    /// Flip whether `index` is one of the active (shown) forms.
+    pub fn toggle_form(&mut self, index: usize) {
+        let mut forms = self.active_forms.clone();
+        if !forms.remove(&index) {
+            forms.insert(index);
+        }
+        self.set_active_forms(forms);
+    }
+
+    /// Deactivate every form for the current selection.
+    pub fn clear_forms(&mut self) {
+        self.set_active_forms(BTreeSet::new());
+    }
+
+    /// Replace the active set outright (e.g. after a delete/reorder re-resolves
+    /// indices by name) and persist it.
+    pub fn set_active_forms(&mut self, forms: BTreeSet<usize>) {
+        self.active_forms = forms;
+        let names: BTreeSet<String> =
+            self.active_forms.iter().filter_map(|&i| self.forms_here().get(i)).map(|f| f.name.clone()).collect();
+        if names.is_empty() {
+            self.settings.last_forms.remove(&self.form_key);
+        } else {
+            self.settings.last_forms.insert(self.form_key.clone(), names);
         }
     }
 
@@ -129,8 +153,14 @@ impl ScaleViewApp {
         if key != self.form_key {
             self.form_key = key;
             self.recording = None;
-            let last = self.settings.last_form.get(&self.form_key);
-            self.active_form = last.and_then(|name| self.forms_here().iter().position(|f| &f.name == name));
+            let names = self.settings.last_forms.get(&self.form_key).cloned().unwrap_or_default();
+            self.active_forms = self
+                .forms_here()
+                .iter()
+                .enumerate()
+                .filter(|(_, f)| names.contains(&f.name))
+                .map(|(i, _)| i)
+                .collect();
         }
     }
 
@@ -224,14 +254,7 @@ impl ScaleViewApp {
         if ctx.egui_wants_keyboard_input() {
             return;
         }
-        let (space, esc, left, right) = ctx.input(|i| {
-            (
-                i.key_pressed(Key::Space),
-                i.key_pressed(Key::Escape),
-                i.key_pressed(Key::ArrowLeft),
-                i.key_pressed(Key::ArrowRight),
-            )
-        });
+        let (space, esc) = ctx.input(|i| (i.key_pressed(Key::Space), i.key_pressed(Key::Escape)));
         let now = ctx.input(|i| i.time);
         if space {
             if self.is_playing() { self.stop() } else { self.play(now) }
@@ -239,13 +262,6 @@ impl ScaleViewApp {
         if esc {
             self.highlight = None;
             self.recording = None;
-        }
-        let n = self.forms_here().len();
-        if n > 0 && (left || right) && self.recording.is_none() {
-            // Cycle through "All notes" (None) and each form.
-            let cur = self.active_form.map_or(0, |i| i + 1) as i32;
-            let next = (cur + if right { 1 } else { -1 }).rem_euclid(n as i32 + 1);
-            self.set_active_form((next > 0).then(|| next as usize - 1));
         }
     }
 }
@@ -282,7 +298,7 @@ impl eframe::App for ScaleViewApp {
         // A chord is shown as its voicings only; forms and recording show everything.
         let chord_shapes = self.settings.selection.kind == ViewKind::Chord
             && self.recording.is_none()
-            && self.active_form.is_none();
+            && self.active_forms.is_empty();
         let shapes: Vec<ChordShape> = if chord_shapes {
             self.model
                 .caged

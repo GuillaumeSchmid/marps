@@ -5,6 +5,7 @@ use super::theme::{ACCENT, CARD, RECORD, TEXT_DIM, caption};
 use crate::forms::Form;
 use crate::theory::engine::ViewKind;
 use egui::{CornerRadius, Frame, Margin, RichText, Ui};
+use std::collections::BTreeSet;
 
 pub fn show(app: &mut ScaleViewApp, ui: &mut Ui) {
     Frame::new()
@@ -32,8 +33,8 @@ pub fn show(app: &mut ScaleViewApp, ui: &mut Ui) {
 }
 
 fn form_list(app: &mut ScaleViewApp, ui: &mut Ui) {
-    if ui.selectable_label(app.active_form.is_none(), "All notes").clicked() {
-        app.set_active_form(None);
+    if ui.selectable_label(app.active_forms.is_empty(), "All notes").clicked() {
+        app.clear_forms();
     }
     let key = app.form_key.clone();
     let names: Vec<String> = app.forms_here().iter().map(|f| f.name.clone()).collect();
@@ -45,8 +46,19 @@ fn form_list(app: &mut ScaleViewApp, ui: &mut Ui) {
                     ui.label(RichText::new("⠿").color(TEXT_DIM));
                 });
                 let text = RichText::new(name).strong();
-                if ui.selectable_label(app.active_form == Some(i), text).clicked() {
-                    app.set_active_form(Some(i));
+                if ui.selectable_label(app.active_forms.contains(&i), text).clicked() {
+                    app.toggle_form(i);
+                }
+                if ui.small_button("✏").on_hover_text("Edit this form").clicked() {
+                    let form = app.forms_here()[i].clone();
+                    app.recording = Some(Recording {
+                        positions: form.transposed(app.settings.selection.root.pc()).into_iter().collect(),
+                        name: form.name.clone(),
+                        editing: Some(i),
+                    });
+                }
+                if ui.small_button("🗑").on_hover_text("Delete this form").clicked() {
+                    delete_and_reresolve(app, i);
                 }
             });
         });
@@ -62,34 +74,37 @@ fn form_list(app: &mut ScaleViewApp, ui: &mut Ui) {
         app.recording = Some(Recording { positions: Default::default(), name: String::new(), editing: None });
         app.highlight = None;
     }
-    if let Some(i) = app.active_form {
-        let form = app.forms_here()[i].clone();
-        if ui.button("✏ Edit").clicked() {
-            app.recording = Some(Recording {
-                positions: form.transposed(app.settings.selection.root.pc()).into_iter().collect(),
-                name: form.name.clone(),
-                editing: Some(i),
-            });
-        }
-        if ui.button("🗑 Delete").clicked() {
-            let key = app.form_key.clone();
-            app.forms.remove(&key, i);
-            app.set_active_form(None);
-        }
-    }
 }
 
-/// After a drag-drop reorder, keep whatever form was selected still selected
-/// (its index may have shifted) by re-resolving it by name.
+/// Active forms' names, so a mutation that shifts indices can re-resolve them afterward.
+fn active_names(app: &ScaleViewApp) -> BTreeSet<String> {
+    app.active_forms.iter().filter_map(|&i| app.forms_here().get(i)).map(|f| f.name.clone()).collect()
+}
+
+/// Indices of forms whose name is in `names`, under the current key.
+fn indices_named(app: &ScaleViewApp, names: &BTreeSet<String>) -> BTreeSet<usize> {
+    app.forms_here().iter().enumerate().filter(|(_, f)| names.contains(&f.name)).map(|(i, _)| i).collect()
+}
+
+/// After a drag-drop reorder, keep whatever forms were active still active
+/// (their indices may have shifted) by re-resolving them by name.
 fn reorder_and_reselect(app: &mut ScaleViewApp, from: usize, to: usize) {
     if from == to {
         return;
     }
     let key = app.form_key.clone();
-    let active_name = app.active_form.and_then(|i| app.forms_here().get(i)).map(|f| f.name.clone());
+    let names = active_names(app);
     app.forms.reorder(&key, from, to);
-    let new_index = active_name.and_then(|name| app.forms_here().iter().position(|f| f.name == name));
-    app.set_active_form(new_index);
+    app.set_active_forms(indices_named(app, &names));
+}
+
+/// Delete form `i`, then re-resolve the remaining active forms by name
+/// (deleting shifts every later index down by one).
+fn delete_and_reresolve(app: &mut ScaleViewApp, i: usize) {
+    let key = app.form_key.clone();
+    let names = active_names(app);
+    app.forms.remove(&key, i);
+    app.set_active_forms(indices_named(app, &names));
 }
 
 fn recording_controls(app: &mut ScaleViewApp, ui: &mut Ui) {
@@ -107,7 +122,9 @@ fn recording_controls(app: &mut ScaleViewApp, ui: &mut Ui) {
         let editing = rec.editing;
         let i = app.forms.put(&key, editing, form);
         app.recording = None;
-        app.set_active_form(Some(i));
+        let mut forms = app.active_forms.clone();
+        forms.insert(i);
+        app.set_active_forms(forms);
         return;
     }
     if ui.button("Clear").clicked() {

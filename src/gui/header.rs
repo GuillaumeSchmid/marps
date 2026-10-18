@@ -71,9 +71,10 @@ pub fn show(app: &mut ScaleViewApp, ui: &mut egui::Ui) {
                 "Click notes on the neck to add or remove them — {} selected. Name the form below and save.",
                 rec.positions.len()
             ));
-        } else if let Some(f) = app.active_form.and_then(|i| app.forms_here().get(i)) {
-            ui.label(RichText::new(format!("Form: {}", f.name)).color(ACCENT).strong());
-            ui.label(RichText::new("◀ ▶ arrow keys switch forms").color(TEXT_DIM).small());
+        } else if !app.active_forms.is_empty() {
+            let names: Vec<&str> =
+                app.active_forms.iter().filter_map(|&i| app.forms_here().get(i)).map(|f| f.name.as_str()).collect();
+            ui.label(RichText::new(format!("Forms: {}", names.join(", "))).color(ACCENT).strong());
         } else if let Some(shape) = app.caged {
             ui.label(RichText::new(format!("CAGED: {} shape", shape.name())).color(ACCENT));
         }

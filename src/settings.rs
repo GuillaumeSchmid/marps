@@ -5,7 +5,7 @@ use crate::theory::engine::{Selection, ViewKind};
 use crate::theory::note::{Letter, Note};
 use crate::theory::scale::{ScaleFamily, ScaleId};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 const FILE: &str = "settings.json";
 
@@ -63,8 +63,8 @@ pub struct Settings {
     pub colored_notes: bool,
     pub colors: [[u8; 3]; 12],
     pub notes_per_sec: f32,
-    /// Last form chosen for each selection key, so forms come back as they were left.
-    pub last_form: BTreeMap<String, String>,
+    /// Forms toggled on for each selection key, so they come back as they were left.
+    pub last_forms: BTreeMap<String, BTreeSet<String>>,
 }
 
 impl Default for Settings {
@@ -83,7 +83,7 @@ impl Default for Settings {
             colored_notes: true,
             colors: DEFAULT_COLORS,
             notes_per_sec: 5.0,
-            last_form: BTreeMap::new(),
+            last_forms: BTreeMap::new(),
         }
     }
 }
