@@ -35,11 +35,23 @@ fn form_list(app: &mut ScaleViewApp, ui: &mut Ui) {
     if ui.selectable_label(app.active_form.is_none(), "All notes").clicked() {
         app.set_active_form(None);
     }
+    let key = app.form_key.clone();
     let names: Vec<String> = app.forms_here().iter().map(|f| f.name.clone()).collect();
     for (i, name) in names.iter().enumerate() {
-        let text = RichText::new(name).strong();
-        if ui.selectable_label(app.active_form == Some(i), text).clicked() {
-            app.set_active_form(Some(i));
+        let (_, dropped) = ui.dnd_drop_zone::<usize, ()>(Frame::new(), |ui| {
+            ui.horizontal(|ui| {
+                let grip_id = egui::Id::new(("form_grip", &key, i));
+                ui.dnd_drag_source(grip_id, i, |ui| {
+                    ui.label(RichText::new("⠿").color(TEXT_DIM));
+                });
+                let text = RichText::new(name).strong();
+                if ui.selectable_label(app.active_form == Some(i), text).clicked() {
+                    app.set_active_form(Some(i));
+                }
+            });
+        });
+        if let Some(from) = dropped {
+            reorder_and_reselect(app, *from, i);
         }
     }
     if names.is_empty() {
@@ -65,6 +77,19 @@ fn form_list(app: &mut ScaleViewApp, ui: &mut Ui) {
             app.set_active_form(None);
         }
     }
+}
+
+/// After a drag-drop reorder, keep whatever form was selected still selected
+/// (its index may have shifted) by re-resolving it by name.
+fn reorder_and_reselect(app: &mut ScaleViewApp, from: usize, to: usize) {
+    if from == to {
+        return;
+    }
+    let key = app.form_key.clone();
+    let active_name = app.active_form.and_then(|i| app.forms_here().get(i)).map(|f| f.name.clone());
+    app.forms.reorder(&key, from, to);
+    let new_index = active_name.and_then(|name| app.forms_here().iter().position(|f| f.name == name));
+    app.set_active_form(new_index);
 }
 
 fn recording_controls(app: &mut ScaleViewApp, ui: &mut Ui) {
