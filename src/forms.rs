@@ -107,6 +107,25 @@ impl FormLibrary {
             }
         }
     }
+
+    /// Merge another library in: a form with the same name in the same key is
+    /// replaced in place by the incoming one; anything new is appended.
+    pub fn merge(&mut self, other: FormLibrary) {
+        self.merge_in_memory(other);
+        self.save();
+    }
+
+    fn merge_in_memory(&mut self, other: FormLibrary) {
+        for (key, incoming) in other.forms {
+            let list = self.forms.entry(key).or_default();
+            for form in incoming {
+                match list.iter_mut().find(|f| f.name == form.name) {
+                    Some(slot) => *slot = form,
+                    None => list.push(form),
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -137,5 +156,35 @@ mod tests {
         lib.reorder_in_memory(key, 0, 2);
         let names: Vec<_> = lib.forms(key).iter().map(|f| f.name.as_str()).collect();
         assert_eq!(names, ["b", "c", "a"]);
+    }
+
+    #[test]
+    fn merge_imported_form_replaces_same_name_in_same_key() {
+        let key = "standard|Cmajor";
+        let mut lib = FormLibrary {
+            forms: BTreeMap::from([(
+                key.to_string(),
+                vec![
+                    Form { name: "shape1".into(), root_pc: 0, positions: vec![Pos::new(0, 0)] },
+                    Form { name: "shape2".into(), root_pc: 0, positions: vec![] },
+                ],
+            )]),
+        };
+        let other = FormLibrary {
+            forms: BTreeMap::from([(
+                key.to_string(),
+                vec![
+                    Form { name: "shape1".into(), root_pc: 0, positions: vec![Pos::new(1, 1)] },
+                    Form { name: "shape3".into(), root_pc: 0, positions: vec![] },
+                ],
+            )]),
+        };
+        lib.merge_in_memory(other);
+        let forms = lib.forms(key);
+        assert_eq!(forms.len(), 3);
+        assert_eq!(forms[0].name, "shape1");
+        assert_eq!(forms[0].positions, vec![Pos::new(1, 1)]); // imported wins, replaced in place
+        assert_eq!(forms[1].name, "shape2");
+        assert_eq!(forms[2].name, "shape3"); // new form appended
     }
 }
