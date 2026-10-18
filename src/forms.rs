@@ -92,6 +92,21 @@ impl FormLibrary {
         }
         self.save();
     }
+
+    /// Move the form at `from` to `to` within one key's list, then persist.
+    pub fn reorder(&mut self, key: &str, from: usize, to: usize) {
+        self.reorder_in_memory(key, from, to);
+        self.save();
+    }
+
+    fn reorder_in_memory(&mut self, key: &str, from: usize, to: usize) {
+        if let Some(list) = self.forms.get_mut(key) {
+            if from < list.len() && to < list.len() && from != to {
+                let item = list.remove(from);
+                list.insert(to, item);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -110,5 +125,17 @@ mod tests {
         let low = Form { name: "y".into(), root_pc: 0, positions: vec![Pos::new(0, 0)] };
         // Can't go below the nut, so B is played 11 frets up.
         assert_eq!(low.transposed(11), [Pos::new(0, 11)]);
+    }
+
+    #[test]
+    fn reorder_moves_item_within_key() {
+        let key = "standard|Cmajor";
+        let mk = |n: &str| Form { name: n.into(), root_pc: 0, positions: vec![] };
+        let mut lib = FormLibrary {
+            forms: BTreeMap::from([(key.to_string(), vec![mk("a"), mk("b"), mk("c")])]),
+        };
+        lib.reorder_in_memory(key, 0, 2);
+        let names: Vec<_> = lib.forms(key).iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(names, ["b", "c", "a"]);
     }
 }
