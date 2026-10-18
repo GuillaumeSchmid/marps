@@ -1,0 +1,904 @@
+{
+  "forms": {
+    "E standard|arpeggio:7": [
+      {
+        "name": "5R",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 1,
+            "fret": 3
+          },
+          {
+            "string": 1,
+            "fret": 7
+          },
+          {
+            "string": 2,
+            "fret": 5
+          },
+          {
+            "string": 3,
+            "fret": 3
+          },
+          {
+            "string": 3,
+            "fret": 5
+          },
+          {
+            "string": 4,
+            "fret": 5
+          },
+          {
+            "string": 5,
+            "fret": 3
+          },
+          {
+            "string": 5,
+            "fret": 6
+          },
+          {
+            "string": 5,
+            "fret": 8
+          }
+        ]
+      },
+      {
+        "name": "6L-9",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 0,
+            "fret": 6
+          },
+          {
+            "string": 0,
+            "fret": 8
+          },
+          {
+            "string": 1,
+            "fret": 7
+          },
+          {
+            "string": 2,
+            "fret": 5
+          },
+          {
+            "string": 2,
+            "fret": 8
+          },
+          {
+            "string": 3,
+            "fret": 7
+          },
+          {
+            "string": 4,
+            "fret": 5
+          },
+          {
+            "string": 4,
+            "fret": 8
+          },
+          {
+            "string": 5,
+            "fret": 6
+          },
+          {
+            "string": 5,
+            "fret": 8
+          },
+          {
+            "string": 5,
+            "fret": 10
+          }
+        ]
+      },
+      {
+        "name": "6R",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 0,
+            "fret": 8
+          },
+          {
+            "string": 0,
+            "fret": 12
+          },
+          {
+            "string": 1,
+            "fret": 10
+          },
+          {
+            "string": 2,
+            "fret": 8
+          },
+          {
+            "string": 2,
+            "fret": 10
+          },
+          {
+            "string": 3,
+            "fret": 9
+          },
+          {
+            "string": 4,
+            "fret": 8
+          },
+          {
+            "string": 4,
+            "fret": 11
+          },
+          {
+            "string": 4,
+            "fret": 13
+          }
+        ]
+      },
+      {
+        "name": "4R-9",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 2,
+            "fret": 10
+          },
+          {
+            "string": 3,
+            "fret": 9
+          },
+          {
+            "string": 3,
+            "fret": 12
+          },
+          {
+            "string": 4,
+            "fret": 11
+          },
+          {
+            "string": 5,
+            "fret": 10
+          },
+          {
+            "string": 5,
+            "fret": 12
+          }
+        ]
+      },
+      {
+        "name": "5L",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 1,
+            "fret": 13
+          },
+          {
+            "string": 1,
+            "fret": 15
+          },
+          {
+            "string": 2,
+            "fret": 14
+          },
+          {
+            "string": 3,
+            "fret": 12
+          },
+          {
+            "string": 3,
+            "fret": 15
+          },
+          {
+            "string": 4,
+            "fret": 13
+          },
+          {
+            "string": 5,
+            "fret": 12
+          },
+          {
+            "string": 5,
+            "fret": 15
+          }
+        ]
+      }
+    ],
+    "E standard|arpeggio:m7": [
+      {
+        "name": "5R",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 1,
+            "fret": 3
+          },
+          {
+            "string": 1,
+            "fret": 6
+          },
+          {
+            "string": 2,
+            "fret": 5
+          },
+          {
+            "string": 3,
+            "fret": 3
+          },
+          {
+            "string": 3,
+            "fret": 5
+          },
+          {
+            "string": 4,
+            "fret": 4
+          },
+          {
+            "string": 5,
+            "fret": 3
+          },
+          {
+            "string": 5,
+            "fret": 6
+          },
+          {
+            "string": 5,
+            "fret": 8
+          }
+        ]
+      },
+      {
+        "name": "6L",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 0,
+            "fret": 8
+          },
+          {
+            "string": 1,
+            "fret": 6
+          },
+          {
+            "string": 2,
+            "fret": 5
+          },
+          {
+            "string": 2,
+            "fret": 8
+          },
+          {
+            "string": 3,
+            "fret": 5
+          },
+          {
+            "string": 3,
+            "fret": 8
+          },
+          {
+            "string": 4,
+            "fret": 8
+          },
+          {
+            "string": 5,
+            "fret": 6
+          },
+          {
+            "string": 5,
+            "fret": 8
+          }
+        ]
+      },
+      {
+        "name": "6R",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 0,
+            "fret": 8
+          },
+          {
+            "string": 0,
+            "fret": 11
+          },
+          {
+            "string": 1,
+            "fret": 10
+          },
+          {
+            "string": 2,
+            "fret": 8
+          },
+          {
+            "string": 2,
+            "fret": 10
+          },
+          {
+            "string": 3,
+            "fret": 8
+          },
+          {
+            "string": 4,
+            "fret": 8
+          },
+          {
+            "string": 4,
+            "fret": 11
+          },
+          {
+            "string": 4,
+            "fret": 13
+          }
+        ]
+      },
+      {
+        "name": "4R",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 2,
+            "fret": 10
+          },
+          {
+            "string": 2,
+            "fret": 13
+          },
+          {
+            "string": 3,
+            "fret": 12
+          },
+          {
+            "string": 4,
+            "fret": 11
+          },
+          {
+            "string": 4,
+            "fret": 13
+          },
+          {
+            "string": 5,
+            "fret": 11
+          },
+          {
+            "string": 5,
+            "fret": 15
+          }
+        ]
+      },
+      {
+        "name": "5L",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 1,
+            "fret": 15
+          },
+          {
+            "string": 2,
+            "fret": 13
+          },
+          {
+            "string": 3,
+            "fret": 12
+          },
+          {
+            "string": 3,
+            "fret": 15
+          },
+          {
+            "string": 4,
+            "fret": 13
+          },
+          {
+            "string": 5,
+            "fret": 11
+          },
+          {
+            "string": 5,
+            "fret": 15
+          }
+        ]
+      }
+    ],
+    "E standard|arpeggio:m7b5": [
+      {
+        "name": "5R",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 1,
+            "fret": 3
+          },
+          {
+            "string": 1,
+            "fret": 6
+          },
+          {
+            "string": 2,
+            "fret": 4
+          },
+          {
+            "string": 3,
+            "fret": 3
+          },
+          {
+            "string": 3,
+            "fret": 5
+          },
+          {
+            "string": 4,
+            "fret": 4
+          },
+          {
+            "string": 5,
+            "fret": 2
+          },
+          {
+            "string": 5,
+            "fret": 6
+          },
+          {
+            "string": 5,
+            "fret": 8
+          }
+        ]
+      },
+      {
+        "name": "6L",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 0,
+            "fret": 8
+          },
+          {
+            "string": 1,
+            "fret": 6
+          },
+          {
+            "string": 1,
+            "fret": 9
+          },
+          {
+            "string": 2,
+            "fret": 8
+          },
+          {
+            "string": 3,
+            "fret": 5
+          },
+          {
+            "string": 3,
+            "fret": 8
+          },
+          {
+            "string": 4,
+            "fret": 7
+          },
+          {
+            "string": 5,
+            "fret": 6
+          },
+          {
+            "string": 5,
+            "fret": 8
+          }
+        ]
+      },
+      {
+        "name": "6R",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 0,
+            "fret": 8
+          },
+          {
+            "string": 0,
+            "fret": 11
+          },
+          {
+            "string": 1,
+            "fret": 9
+          },
+          {
+            "string": 2,
+            "fret": 8
+          },
+          {
+            "string": 2,
+            "fret": 10
+          },
+          {
+            "string": 3,
+            "fret": 8
+          },
+          {
+            "string": 3,
+            "fret": 11
+          },
+          {
+            "string": 4,
+            "fret": 11
+          },
+          {
+            "string": 5,
+            "fret": 8
+          },
+          {
+            "string": 5,
+            "fret": 11
+          }
+        ]
+      },
+      {
+        "name": "4R",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 2,
+            "fret": 10
+          },
+          {
+            "string": 2,
+            "fret": 13
+          },
+          {
+            "string": 3,
+            "fret": 10
+          },
+          {
+            "string": 3,
+            "fret": 11
+          },
+          {
+            "string": 4,
+            "fret": 11
+          },
+          {
+            "string": 4,
+            "fret": 13
+          },
+          {
+            "string": 5,
+            "fret": 11
+          },
+          {
+            "string": 5,
+            "fret": 14
+          }
+        ]
+      },
+      {
+        "name": "5L",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 1,
+            "fret": 15
+          },
+          {
+            "string": 2,
+            "fret": 13
+          },
+          {
+            "string": 2,
+            "fret": 16
+          },
+          {
+            "string": 3,
+            "fret": 15
+          },
+          {
+            "string": 4,
+            "fret": 13
+          },
+          {
+            "string": 4,
+            "fret": 16
+          },
+          {
+            "string": 5,
+            "fret": 14
+          }
+        ]
+      }
+    ],
+    "E standard|arpeggio:maj7": [
+      {
+        "name": "5R",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 1,
+            "fret": 3
+          },
+          {
+            "string": 1,
+            "fret": 7
+          },
+          {
+            "string": 2,
+            "fret": 5
+          },
+          {
+            "string": 3,
+            "fret": 4
+          },
+          {
+            "string": 3,
+            "fret": 5
+          },
+          {
+            "string": 4,
+            "fret": 5
+          },
+          {
+            "string": 5,
+            "fret": 3
+          },
+          {
+            "string": 5,
+            "fret": 7
+          },
+          {
+            "string": 5,
+            "fret": 8
+          }
+        ]
+      },
+      {
+        "name": "5R2",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 1,
+            "fret": 2
+          },
+          {
+            "string": 1,
+            "fret": 3
+          },
+          {
+            "string": 2,
+            "fret": 2
+          },
+          {
+            "string": 2,
+            "fret": 5
+          },
+          {
+            "string": 3,
+            "fret": 4
+          },
+          {
+            "string": 3,
+            "fret": 5
+          },
+          {
+            "string": 4,
+            "fret": 5
+          },
+          {
+            "string": 5,
+            "fret": 3
+          },
+          {
+            "string": 5,
+            "fret": 7
+          },
+          {
+            "string": 5,
+            "fret": 8
+          }
+        ]
+      },
+      {
+        "name": "6L+6R",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 0,
+            "fret": 7
+          },
+          {
+            "string": 0,
+            "fret": 8
+          },
+          {
+            "string": 1,
+            "fret": 7
+          },
+          {
+            "string": 2,
+            "fret": 5
+          },
+          {
+            "string": 2,
+            "fret": 9
+          },
+          {
+            "string": 2,
+            "fret": 10
+          },
+          {
+            "string": 3,
+            "fret": 9
+          },
+          {
+            "string": 4,
+            "fret": 8
+          },
+          {
+            "string": 5,
+            "fret": 7
+          },
+          {
+            "string": 5,
+            "fret": 8
+          }
+        ]
+      },
+      {
+        "name": "6R",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 0,
+            "fret": 7
+          },
+          {
+            "string": 0,
+            "fret": 8
+          },
+          {
+            "string": 1,
+            "fret": 7
+          },
+          {
+            "string": 1,
+            "fret": 10
+          },
+          {
+            "string": 2,
+            "fret": 9
+          },
+          {
+            "string": 2,
+            "fret": 10
+          },
+          {
+            "string": 3,
+            "fret": 9
+          },
+          {
+            "string": 4,
+            "fret": 8
+          },
+          {
+            "string": 4,
+            "fret": 12
+          },
+          {
+            "string": 4,
+            "fret": 13
+          }
+        ]
+      },
+      {
+        "name": "5L",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 1,
+            "fret": 14
+          },
+          {
+            "string": 1,
+            "fret": 15
+          },
+          {
+            "string": 2,
+            "fret": 14
+          },
+          {
+            "string": 3,
+            "fret": 12
+          },
+          {
+            "string": 3,
+            "fret": 16
+          },
+          {
+            "string": 4,
+            "fret": 13
+          },
+          {
+            "string": 5,
+            "fret": 12
+          },
+          {
+            "string": 5,
+            "fret": 15
+          }
+        ]
+      },
+      {
+        "name": "5L+5R",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 1,
+            "fret": 14
+          },
+          {
+            "string": 1,
+            "fret": 15
+          },
+          {
+            "string": 2,
+            "fret": 14
+          },
+          {
+            "string": 3,
+            "fret": 12
+          },
+          {
+            "string": 3,
+            "fret": 16
+          },
+          {
+            "string": 3,
+            "fret": 17
+          },
+          {
+            "string": 4,
+            "fret": 17
+          },
+          {
+            "string": 5,
+            "fret": 15
+          },
+          {
+            "string": 5,
+            "fret": 19
+          },
+          {
+            "string": 5,
+            "fret": 20
+          }
+        ]
+      },
+      {
+        "name": "4R",
+        "root_pc": 0,
+        "positions": [
+          {
+            "string": 2,
+            "fret": 9
+          },
+          {
+            "string": 2,
+            "fret": 10
+          },
+          {
+            "string": 3,
+            "fret": 9
+          },
+          {
+            "string": 3,
+            "fret": 12
+          },
+          {
+            "string": 4,
+            "fret": 12
+          },
+          {
+            "string": 4,
+            "fret": 13
+          }
+        ]
+      }
+    ]
+  }
+}
