@@ -12,9 +12,23 @@ inspection = ["eframe/inspection"]
 [dependencies]
 eframe = "0.36.1"
 egui = "0.36.1"
-cpal = "0.17.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-directories = "6.0.0"
 zip = { version = "9", default-features = false, features = ["deflate"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+cpal = "0.17.3"
+directories = "6.0.0"
 egui-file-dialog = "0.15"
+
+# Browser build (`trunk serve` / `trunk build --release`, see index.html).
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+cpal = { version = "0.17.3", features = ["wasm-bindgen"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+log = "0.4"
+web-sys = { version = "0.3", features = [
+    "Window", "Document", "Element", "HtmlElement", "HtmlCanvasElement", "HtmlInputElement",
+    "HtmlAnchorElement", "Storage", "Blob", "BlobPropertyBag", "Url", "File", "FileList", "Event",
+] }

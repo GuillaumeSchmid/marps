@@ -31,7 +31,7 @@ impl ChordCategory {
     }
 }
 
-/// A chord quality, independent of root. `symbol` is the stable id used for saved forms.
+/// A chord quality, independent of root. `symbol` is the stable id used for saved shapes.
 #[derive(Clone, Copy, Debug)]
 pub struct ChordQuality {
     pub symbol: &'static str,

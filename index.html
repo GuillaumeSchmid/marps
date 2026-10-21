@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ScaleView</title>
+    <link data-trunk rel="rust" data-wasm-opt="z">
+    <style>
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #1b1b1b; }
+        #scaleview { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+        #loading {
+            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            color: #ccc; font: 16px system-ui, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="scaleview"></canvas>
+    <div id="loading">Loading ScaleView…</div>
+    <script>
+        // Browsers refuse to load the wasm module from file://, which would leave the page stuck loading.
+        if (location.protocol === "file:") {
+            document.getElementById("loading").textContent =
+                "ScaleView must be served over HTTP — run `trunk serve --open`, or `python3 -m http.server -d dist` and open http://localhost:8000/";
+        }
+    </script>
+</body>
+</html>

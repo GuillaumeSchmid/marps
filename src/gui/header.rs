@@ -1,5 +1,5 @@
 //! Above the neck: the selection's name, its formula as clickable tone chips,
-//! and a status line (active form, recording, audio problems).
+//! and a status line (active shape, recording, audio problems).
 
 use super::app::ScaleViewApp;
 use super::theme::{self, ACCENT, CARD, RECORD, TEXT, TEXT_DIM, text_on};
@@ -68,13 +68,13 @@ pub fn show(app: &mut ScaleViewApp, ui: &mut egui::Ui) {
         if let Some(rec) = &app.recording {
             ui.label(RichText::new("⏺ REC").color(RECORD).strong());
             ui.label(format!(
-                "Click notes on the neck to add or remove them — {} selected. Name the form below and save.",
+                "Click notes on the neck to add or remove them — {} selected. Name the shape below and save.",
                 rec.positions.len()
             ));
-        } else if !app.active_forms.is_empty() {
+        } else if !app.active_shapes.is_empty() {
             let names: Vec<&str> =
-                app.active_forms.iter().filter_map(|&i| app.forms_here().get(i)).map(|f| f.name.as_str()).collect();
-            ui.label(RichText::new(format!("Forms: {}", names.join(", "))).color(ACCENT).strong());
+                app.active_shapes.iter().filter_map(|&i| app.shapes_here().get(i)).map(|f| f.name.as_str()).collect();
+            ui.label(RichText::new(format!("Shapes: {}", names.join(", "))).color(ACCENT).strong());
         } else if let Some(shape) = app.caged {
             ui.label(RichText::new(format!("CAGED: {} shape", shape.name())).color(ACCENT));
         }

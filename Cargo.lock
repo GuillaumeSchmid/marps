@@ -2937,8 +2937,13 @@ dependencies = [
  "eframe",
  "egui",
  "egui-file-dialog",
+ "js-sys",
+ "log",
  "serde",
  "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
  "zip",
 ]
 

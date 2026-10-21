@@ -3,9 +3,9 @@
 
 use super::fretboard::{Band, ChordShape, FretboardView};
 use super::theme::{self, BG, PANEL};
-use super::{controls, file_menu, forms_panel, header};
+use super::{controls, file_menu, shapes_panel, header};
 use crate::audio::{AudioEngine, PhraseNote};
-use crate::forms::{Form, FormLibrary};
+use crate::shapes::{Shape, ShapeLibrary};
 use crate::settings::Settings;
 use crate::theory::Pos;
 use crate::theory::caged::CagedShape;
@@ -18,7 +18,7 @@ use std::collections::{BTreeSet, HashSet};
 pub struct Recording {
     pub positions: BTreeSet<Pos>,
     pub name: String,
-    /// Index of the form being edited, or None for a new one.
+    /// Index of the shape being edited, or None for a new one.
     pub editing: Option<usize>,
 }
 
@@ -33,15 +33,15 @@ pub struct ScaleViewApp {
     pub audio: AudioEngine,
     pub settings: Settings,
     saved_settings: Settings,
-    pub forms: FormLibrary,
+    pub shapes: ShapeLibrary,
     pub file_menu: file_menu::FileMenu,
     pub model: FretboardModel,
     model_for: (Selection, String),
     /// Highlighted pitch class, and the position it was picked from.
     pub highlight: Option<(u8, Option<Pos>)>,
     pub caged: Option<CagedShape>,
-    pub active_forms: BTreeSet<usize>,
-    pub form_key: String,
+    pub active_shapes: BTreeSet<usize>,
+    pub shapes_key: String,
     pub recording: Option<Recording>,
     playing: Option<Playing>,
     pub show_colors: bool,
@@ -63,19 +63,19 @@ impl ScaleViewApp {
             saved_settings: settings.clone(),
             model_for: (settings.selection.clone(), settings.tuning.clone()),
             settings,
-            forms: FormLibrary::load(),
+            shapes: ShapeLibrary::load(),
             file_menu: file_menu::FileMenu::new(),
             model,
             highlight: None,
             caged: None,
-            active_forms: BTreeSet::new(),
-            form_key: String::new(),
+            active_shapes: BTreeSet::new(),
+            shapes_key: String::new(),
             recording: None,
             playing: None,
             show_colors: false,
             chord_category,
         };
-        app.sync_forms();
+        app.sync_shapes();
         app
     }
 
@@ -83,54 +83,54 @@ impl ScaleViewApp {
         Tuning::by_name(&self.settings.tuning)
     }
 
-    pub fn forms_here(&self) -> &[Form] {
-        self.forms.forms(&self.form_key)
+    pub fn shapes_here(&self) -> &[Shape] {
+        self.shapes.shapes(&self.shapes_key)
     }
 
-    /// Union of every active form's positions, transposed to the current root.
-    pub fn form_positions(&self) -> Option<Vec<Pos>> {
-        if self.active_forms.is_empty() {
+    /// Union of every active shape's positions, transposed to the current root.
+    pub fn shape_positions(&self) -> Option<Vec<Pos>> {
+        if self.active_shapes.is_empty() {
             return None;
         }
         let root_pc = self.settings.selection.root.pc();
-        let forms_here = self.forms_here();
+        let shapes_here = self.shapes_here();
         let mut positions: BTreeSet<Pos> = BTreeSet::new();
-        for &i in &self.active_forms {
-            if let Some(form) = forms_here.get(i) {
-                positions.extend(form.transposed(root_pc));
+        for &i in &self.active_shapes {
+            if let Some(shape) = shapes_here.get(i) {
+                positions.extend(shape.transposed(root_pc));
             }
         }
         Some(positions.into_iter().collect())
     }
 
-    /// Flip whether `index` is one of the active (shown) forms.
-    pub fn toggle_form(&mut self, index: usize) {
-        let mut forms = self.active_forms.clone();
-        if !forms.remove(&index) {
-            forms.insert(index);
+    /// Flip whether `index` is one of the active (shown) shapes.
+    pub fn toggle_shape(&mut self, index: usize) {
+        let mut shapes = self.active_shapes.clone();
+        if !shapes.remove(&index) {
+            shapes.insert(index);
         }
-        self.set_active_forms(forms);
+        self.set_active_shapes(shapes);
     }
 
-    /// Deactivate every form for the current selection.
-    pub fn clear_forms(&mut self) {
-        self.set_active_forms(BTreeSet::new());
+    /// Deactivate every shape for the current selection.
+    pub fn clear_shapes(&mut self) {
+        self.set_active_shapes(BTreeSet::new());
     }
 
     /// Replace the active set outright (e.g. after a delete/reorder re-resolves
     /// indices by name) and persist it.
-    pub fn set_active_forms(&mut self, forms: BTreeSet<usize>) {
-        self.active_forms = forms;
+    pub fn set_active_shapes(&mut self, shapes: BTreeSet<usize>) {
+        self.active_shapes = shapes;
         let names: BTreeSet<String> =
-            self.active_forms.iter().filter_map(|&i| self.forms_here().get(i)).map(|f| f.name.clone()).collect();
+            self.active_shapes.iter().filter_map(|&i| self.shapes_here().get(i)).map(|f| f.name.clone()).collect();
         if names.is_empty() {
-            self.settings.last_forms.remove(&self.form_key);
+            self.settings.last_shapes.remove(&self.shapes_key);
         } else {
-            self.settings.last_forms.insert(self.form_key.clone(), names);
+            self.settings.last_shapes.insert(self.shapes_key.clone(), names);
         }
     }
 
-    /// Recompute the model and recall forms when the selection or tuning changed.
+    /// Recompute the model and recall shapes when the selection or tuning changed.
     fn refresh(&mut self) {
         let wanted = (self.settings.selection.clone(), self.settings.tuning.clone());
         if wanted != self.model_for {
@@ -145,17 +145,17 @@ impl ScaleViewApp {
                 self.caged = None;
             }
         }
-        self.sync_forms();
+        self.sync_shapes();
     }
 
-    fn sync_forms(&mut self) {
-        let key = FormLibrary::key(&self.settings.tuning, &self.settings.selection.shape_key());
-        if key != self.form_key {
-            self.form_key = key;
+    fn sync_shapes(&mut self) {
+        let key = ShapeLibrary::key(&self.settings.tuning, &self.settings.selection.shape_key());
+        if key != self.shapes_key {
+            self.shapes_key = key;
             self.recording = None;
-            let names = self.settings.last_forms.get(&self.form_key).cloned().unwrap_or_default();
-            self.active_forms = self
-                .forms_here()
+            let names = self.settings.last_shapes.get(&self.shapes_key).cloned().unwrap_or_default();
+            self.active_shapes = self
+                .shapes_here()
                 .iter()
                 .enumerate()
                 .filter(|(_, f)| names.contains(&f.name))
@@ -167,7 +167,7 @@ impl ScaleViewApp {
     pub fn play(&mut self, now: f64) {
         let sel = &self.settings.selection;
         let tuning = self.tuning();
-        let positions = match (&self.recording, self.form_positions()) {
+        let positions = match (&self.recording, self.shape_positions()) {
             (Some(r), _) if !r.positions.is_empty() => r.positions.iter().copied().collect(),
             (_, Some(p)) => p,
             _ => {
@@ -224,7 +224,7 @@ impl ScaleViewApp {
         if self.recording.is_some() {
             return None;
         }
-        if let Some(p) = self.form_positions() {
+        if let Some(p) = self.shape_positions() {
             return Some(p.into_iter().collect());
         }
         let kind = self.settings.selection.kind;
@@ -271,14 +271,14 @@ impl eframe::App for ScaleViewApp {
         let ctx = ui.ctx().clone();
         self.shortcuts(&ctx);
         self.refresh();
-        self.file_menu.update(&ctx, &mut self.forms);
+        self.file_menu.update(&ctx, &mut self.shapes);
 
         let bar = Frame::new().fill(PANEL).inner_margin(Margin::symmetric(16, 10));
         egui::Panel::top("selection").frame(bar).show(ui, |ui| controls::selection_bar(self, ui));
         egui::Panel::bottom("options").frame(bar).show(ui, |ui| {
             controls::options_bar(self, ui);
             ui.add_space(4.0);
-            forms_panel::show(self, ui);
+            shapes_panel::show(self, ui);
             if self.show_colors {
                 ui.add_space(4.0);
                 controls::color_editor(self, ui);
@@ -295,10 +295,10 @@ impl eframe::App for ScaleViewApp {
             .iter()
             .map(|c| Band { label: c.shape.name(), lo: c.lo, hi: c.hi, active: self.caged == Some(c.shape) })
             .collect();
-        // A chord is shown as its voicings only; forms and recording show everything.
+        // A chord is shown as its voicings only; shapes and recording show everything.
         let chord_shapes = self.settings.selection.kind == ViewKind::Chord
             && self.recording.is_none()
-            && self.active_forms.is_empty();
+            && self.active_shapes.is_empty();
         let shapes: Vec<ChordShape> = if chord_shapes {
             self.model
                 .caged

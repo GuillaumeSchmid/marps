@@ -63,8 +63,9 @@ pub struct Settings {
     pub colored_notes: bool,
     pub colors: [[u8; 3]; 12],
     pub notes_per_sec: f32,
-    /// Forms toggled on for each selection key, so they come back as they were left.
-    pub last_forms: BTreeMap<String, BTreeSet<String>>,
+    /// Shapes toggled on for each selection key, so they come back as they were left.
+    #[serde(alias = "last_forms")]
+    pub last_shapes: BTreeMap<String, BTreeSet<String>>,
 }
 
 impl Default for Settings {
@@ -83,7 +84,7 @@ impl Default for Settings {
             colored_notes: true,
             colors: DEFAULT_COLORS,
             notes_per_sec: 5.0,
-            last_forms: BTreeMap::new(),
+            last_shapes: BTreeMap::new(),
         }
     }
 }

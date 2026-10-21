@@ -5,6 +5,7 @@ mod synth;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
+use std::cell::RefCell;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use synth::{ScheduledNote, Synth};
 
@@ -23,30 +24,56 @@ enum Command {
 
 pub struct AudioEngine {
     tx: Sender<Command>,
-    // Kept alive for as long as the engine exists; None if no output device.
-    _stream: Option<cpal::Stream>,
-    error: Option<String>,
+    stream: RefCell<StreamState>,
+}
+
+enum StreamState {
+    /// Not opened yet. Browsers only allow audio to start after a user gesture,
+    /// so on the web the stream is opened on the first `play`.
+    Pending(Receiver<Command>),
+    // Kept alive for as long as the engine exists.
+    Running(#[allow(dead_code)] cpal::Stream),
+    Failed(String),
 }
 
 impl AudioEngine {
     pub fn new() -> Self {
         let (tx, rx) = channel();
-        match open_stream(rx) {
-            Ok(stream) => Self { tx, _stream: Some(stream), error: None },
-            Err(e) => {
-                eprintln!("audio disabled: {e}");
-                Self { tx, _stream: None, error: Some(e) }
-            }
+        let engine = Self { tx, stream: RefCell::new(StreamState::Pending(rx)) };
+        if !cfg!(target_arch = "wasm32") {
+            engine.ensure_stream();
         }
+        engine
+    }
+
+    fn ensure_stream(&self) {
+        let mut state = self.stream.borrow_mut();
+        if !matches!(*state, StreamState::Pending(_)) {
+            return;
+        }
+        let StreamState::Pending(rx) = std::mem::replace(&mut *state, StreamState::Failed(String::new())) else {
+            unreachable!()
+        };
+        *state = match open_stream(rx) {
+            Ok(stream) => StreamState::Running(stream),
+            Err(e) => {
+                crate::storage::log_error(&format!("audio disabled: {e}"));
+                StreamState::Failed(e)
+            }
+        };
     }
 
     /// Why audio is unavailable, if it is.
-    pub fn error(&self) -> Option<&str> {
-        self.error.as_deref()
+    pub fn error(&self) -> Option<String> {
+        match &*self.stream.borrow() {
+            StreamState::Failed(e) => Some(e.clone()),
+            _ => None,
+        }
     }
 
     /// Start a phrase now, replacing anything still pending.
     pub fn play(&self, notes: Vec<PhraseNote>) {
+        self.ensure_stream();
         let _ = self.tx.send(Command::Play(notes));
     }
 
@@ -104,7 +131,7 @@ where
                     frame.iter_mut().for_each(|o| *o = s);
                 }
             },
-            |e| eprintln!("audio stream error: {e}"),
+            |e| crate::storage::log_error(&format!("audio stream error: {e}")),
             None,
         )
         .map_err(|e| e.to_string())

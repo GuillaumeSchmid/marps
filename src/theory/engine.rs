@@ -51,7 +51,7 @@ impl Selection {
         }
     }
 
-    /// Root-independent identity, used to attach transposable forms.
+    /// Root-independent identity, used to attach transposable shapes.
     pub fn shape_key(&self) -> String {
         match self.kind {
             ViewKind::Scale => format!("scale:{:?}:{}", self.scale.family, self.scale.mode),
@@ -201,7 +201,7 @@ impl ScaleEngine {
             .collect()
     }
 
-    /// Positions to play when no form is active: inside a CAGED window, or
+    /// Positions to play when no shape is active: inside a CAGED window, or
     /// otherwise the first position from the lowest root on the lowest string.
     pub fn default_positions(
         &self,

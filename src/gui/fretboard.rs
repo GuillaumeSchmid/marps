@@ -41,7 +41,7 @@ pub struct FretboardView<'a> {
     /// Hide out-of-focus tones instead of ghosting them.
     pub hide_unfocused: bool,
     pub shapes: &'a [ChordShape],
-    /// Positions picked while recording a form.
+    /// Positions picked while recording a shape.
     pub marked: Option<&'a BTreeSet<Pos>>,
     pub bands: &'a [Band],
     /// Positions currently sounding during playback.
