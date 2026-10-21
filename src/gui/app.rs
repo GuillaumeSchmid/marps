@@ -4,7 +4,7 @@
 use super::fretboard::{Band, ChordShape, FretboardView};
 use super::theme::{self, BG, PANEL};
 use super::{controls, file_menu, shapes_panel, header};
-use crate::audio::{AudioEngine, PhraseNote};
+use crate::audio::{AudioEngine, Phrase, PhraseNote, Tick};
 use crate::shapes::{Shape, ShapeLibrary};
 use crate::settings::Settings;
 use crate::theory::Pos;
@@ -26,6 +26,22 @@ struct Playing {
     steps: Vec<PlayStep>,
     start: f64,
     chord: bool,
+    /// Cycle length in seconds when looping.
+    loop_every: Option<f32>,
+    /// What the phrase was built from; playback restarts when it changes.
+    source: PhraseSource,
+}
+
+/// Everything a phrase is built from.
+#[derive(PartialEq)]
+struct PhraseSource {
+    kind: ViewKind,
+    positions: Vec<Pos>,
+    tuning: String,
+    bpm: u16,
+    notes_per_beat: u8,
+    metronome: bool,
+    looping: bool,
 }
 
 pub struct ScaleViewApp {
@@ -164,22 +180,52 @@ impl ScaleViewApp {
         }
     }
 
-    pub fn play(&mut self, now: f64) {
-        let sel = &self.settings.selection;
+    fn phrase_source(&self) -> PhraseSource {
+        let s = &self.settings;
         let tuning = self.tuning();
         let positions = match (&self.recording, self.shape_positions()) {
             (Some(r), _) if !r.positions.is_empty() => r.positions.iter().copied().collect(),
             (_, Some(p)) => p,
             _ => {
-                let window = self.caged.and_then(|s| self.model.caged.iter().find(|c| c.shape == s));
-                self.engine.default_positions(&self.model, sel, tuning, window)
+                let window = self.caged.and_then(|c| self.model.caged.iter().find(|p| p.shape == c));
+                self.engine.default_positions(&self.model, &s.selection, tuning, window)
             }
         };
-        let steps = self.engine.playback(sel.kind, &positions, tuning, self.settings.notes_per_sec);
-        self.audio.play(
-            steps.iter().map(|s| PhraseNote { midi: s.midi, at: s.at, group: Some(s.pos.string) }).collect(),
-        );
-        self.playing = Some(Playing { steps, start: now, chord: sel.kind == ViewKind::Chord });
+        PhraseSource {
+            kind: s.selection.kind,
+            positions,
+            tuning: s.tuning.clone(),
+            bpm: s.bpm,
+            notes_per_beat: s.notes_per_beat,
+            metronome: s.metronome,
+            looping: s.loop_playback,
+        }
+    }
+
+    pub fn play(&mut self, now: f64) {
+        let source = self.phrase_source();
+        let s = &self.settings;
+        let chord = source.kind == ViewKind::Chord;
+        let mut steps = self.engine.playback(source.kind, &source.positions, self.tuning(), s.notes_per_sec());
+        // A chord rings for a bar; a line takes whole beats, so each cycle starts on a click.
+        let beats = if chord {
+            4
+        } else {
+            if s.loop_playback && steps.len() > 1 {
+                steps.pop(); // back on the lowest note, which is where the next cycle starts
+            }
+            steps.len().div_ceil(s.notes_per_beat.max(1) as usize).max(1)
+        };
+        let beat = s.beat_secs();
+        let ticks = if s.metronome {
+            (0..beats).map(|b| Tick { at: b as f32 * beat, accent: b == 0 }).collect()
+        } else {
+            Vec::new()
+        };
+        let loop_every = s.loop_playback.then_some(beats as f32 * beat);
+        let notes = steps.iter().map(|s| PhraseNote { midi: s.midi, at: s.at, group: Some(s.pos.string) }).collect();
+        self.audio.play(Phrase { notes, ticks, loop_every });
+        self.playing = Some(Playing { steps, start: now, chord, loop_every, source });
     }
 
     pub fn stop(&mut self) {
@@ -193,10 +239,11 @@ impl ScaleViewApp {
 
     fn sounding(&mut self, now: f64) -> Vec<Pos> {
         let Some(p) = &self.playing else { return Vec::new() };
-        let t = (now - p.start) as f32;
-        let dur = if p.chord { 1.5 } else { 0.95 / self.settings.notes_per_sec };
-        let last = p.steps.last().map_or(0.0, |s| s.at);
-        if t > last + dur.max(0.4) {
+        let mut t = (now - p.start) as f32;
+        let dur = if p.chord { 1.5 } else { 0.95 / self.settings.notes_per_sec() };
+        if let Some(period) = p.loop_every {
+            t %= period;
+        } else if t > p.steps.last().map_or(0.0, |s| s.at) + dur.max(0.4) {
             self.playing = None;
             return Vec::new();
         }
@@ -216,7 +263,7 @@ impl ScaleViewApp {
             Some((h, Some(p))) if h == pc && p == pos => None,
             _ => Some((pc, Some(pos))),
         };
-        self.audio.play(vec![PhraseNote { midi, at: 0.0, group: Some(pos.string) }]);
+        self.audio.pluck(PhraseNote { midi, at: 0.0, group: Some(pos.string) });
     }
 
     /// Notes drawn at full strength; everything else is ghosted.
@@ -287,7 +334,14 @@ impl eframe::App for ScaleViewApp {
         self.refresh();
 
         let now = ctx.input(|i| i.time);
+        if self.playing.as_ref().is_some_and(|p| p.source != self.phrase_source()) {
+            self.play(now);
+        }
         let sounding = self.sounding(now);
+        if self.playing.is_some() {
+            // Keep time moving through rests, where nothing is lit.
+            ctx.request_repaint();
+        }
         let focus = self.focus();
         let bands: Vec<Band> = self
             .model

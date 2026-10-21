@@ -1,5 +1,5 @@
-//! The audio engine: owns the output stream and plays timed note lists.
-//! It knows nothing about scales or the GUI — only MIDI pitches and onsets.
+//! The audio engine: owns the output stream and plays timed phrases, optionally looped,
+//! with metronome ticks. It knows nothing about scales or the GUI — only MIDI pitches and onsets.
 
 mod synth;
 
@@ -7,7 +7,7 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
 use std::cell::RefCell;
 use std::sync::mpsc::{Receiver, Sender, channel};
-use synth::{ScheduledNote, Synth};
+use synth::{Scheduled, Sound, Synth};
 
 /// A note in a phrase: MIDI pitch, onset in seconds, and an optional cut group (e.g. a string).
 #[derive(Clone, Copy, Debug)]
@@ -17,8 +17,37 @@ pub struct PhraseNote {
     pub group: Option<u8>,
 }
 
+/// A metronome tick at `at` seconds; `accent` marks the downbeat.
+#[derive(Clone, Copy, Debug)]
+pub struct Tick {
+    pub at: f32,
+    pub accent: bool,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct Phrase {
+    pub notes: Vec<PhraseNote>,
+    pub ticks: Vec<Tick>,
+    /// Start over every this many seconds until stopped; None plays once.
+    pub loop_every: Option<f32>,
+}
+
+impl Phrase {
+    /// Every note and tick, with onsets in samples from the phrase start.
+    fn sounds(&self, sr: f32) -> Vec<Scheduled> {
+        let at = |t: f32| (t.max(0.0) * sr) as u64;
+        let notes = self.notes.iter().map(|n| Scheduled {
+            at_sample: at(n.at),
+            sound: Sound::Pluck { midi: n.midi, velocity: 0.85, group: n.group },
+        });
+        let ticks = self.ticks.iter().map(|t| Scheduled { at_sample: at(t.at), sound: Sound::Click { accent: t.accent } });
+        notes.chain(ticks).collect()
+    }
+}
+
 enum Command {
-    Play(Vec<PhraseNote>),
+    Play(Phrase),
+    Pluck(PhraseNote),
     Stop,
 }
 
@@ -72,9 +101,15 @@ impl AudioEngine {
     }
 
     /// Start a phrase now, replacing anything still pending.
-    pub fn play(&self, notes: Vec<PhraseNote>) {
+    pub fn play(&self, phrase: Phrase) {
         self.ensure_stream();
-        let _ = self.tx.send(Command::Play(notes));
+        let _ = self.tx.send(Command::Play(phrase));
+    }
+
+    /// Sound one note now, on top of whatever is playing.
+    pub fn pluck(&self, note: PhraseNote) {
+        self.ensure_stream();
+        let _ = self.tx.send(Command::Pluck(note));
     }
 
     pub fn stop(&self) {
@@ -112,17 +147,22 @@ where
                 while let Ok(cmd) = rx.try_recv() {
                     match cmd {
                         Command::Stop => synth.stop(),
-                        Command::Play(notes) => {
+                        Command::Play(phrase) => {
                             synth.stop();
                             // Small offset so the first note is never late by a partial buffer.
-                            let start = synth.now() + (0.01 * synth.sample_rate()) as u64;
                             let sr = synth.sample_rate();
-                            synth.schedule(notes.into_iter().map(|n| ScheduledNote {
-                                at_sample: start + (n.at.max(0.0) * sr) as u64,
-                                midi: n.midi,
-                                velocity: 0.85,
-                                group: n.group,
-                            }));
+                            let start = synth.now() + (0.01 * sr) as u64;
+                            let sounds = phrase.sounds(sr);
+                            match phrase.loop_every {
+                                Some(period) => synth.repeat(sounds, start, (period * sr) as u64),
+                                None => synth.schedule(
+                                    sounds.into_iter().map(|s| Scheduled { at_sample: start + s.at_sample, ..s }),
+                                ),
+                            }
+                        }
+                        Command::Pluck(n) => {
+                            let sound = Sound::Pluck { midi: n.midi, velocity: 0.85, group: n.group };
+                            synth.schedule([Scheduled { at_sample: synth.now(), sound }]);
                         }
                     }
                 }

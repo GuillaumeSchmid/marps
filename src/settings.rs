@@ -62,7 +62,13 @@ pub struct Settings {
     /// Off: every note in one neutral colour that contrasts with the neck wood.
     pub colored_notes: bool,
     pub colors: [[u8; 3]; 12],
-    pub notes_per_sec: f32,
+    /// Playback tempo; the metronome clicks on each beat.
+    pub bpm: u16,
+    /// Notes played per beat (2 = eighth notes).
+    pub notes_per_beat: u8,
+    pub metronome: bool,
+    /// Repeat the phrase until stopped.
+    pub loop_playback: bool,
     /// Shapes toggled on for each selection key, so they come back as they were left.
     #[serde(alias = "last_forms")]
     pub last_shapes: BTreeMap<String, BTreeSet<String>>,
@@ -83,7 +89,10 @@ impl Default for Settings {
             show_scale: true,
             colored_notes: true,
             colors: DEFAULT_COLORS,
-            notes_per_sec: 5.0,
+            bpm: 120,
+            notes_per_beat: 2,
+            metronome: true,
+            loop_playback: false,
             last_shapes: BTreeMap::new(),
         }
     }
@@ -96,5 +105,13 @@ impl Settings {
 
     pub fn save(&self) {
         storage::save(FILE, self);
+    }
+
+    pub fn beat_secs(&self) -> f32 {
+        60.0 / self.bpm.max(1) as f32
+    }
+
+    pub fn notes_per_sec(&self) -> f32 {
+        self.notes_per_beat.max(1) as f32 / self.beat_secs()
     }
 }

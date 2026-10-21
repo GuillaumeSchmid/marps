@@ -9,7 +9,7 @@ use crate::theory::engine::ViewKind;
 use crate::theory::note::{DEGREE_CLASS_LABELS, Note};
 use crate::theory::scale::{ScaleFamily, ScaleId};
 use crate::theory::tuning::TUNINGS;
-use egui::{ComboBox, CornerRadius, Frame, Margin, RichText, Slider, Ui};
+use egui::{ComboBox, CornerRadius, DragValue, Frame, Margin, RichText, Ui};
 
 fn card<R>(ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> R {
     Frame::new()
@@ -134,10 +134,21 @@ pub fn options_bar(app: &mut ScaleViewApp, ui: &mut Ui) {
             if play.clicked() {
                 if app.is_playing() { app.stop() } else { app.play(now) }
             }
-            ui.add_enabled(
-                app.settings.selection.kind != ViewKind::Chord,
-                Slider::new(&mut app.settings.notes_per_sec, 1.0..=14.0).text("notes/s").max_decimals(1),
-            );
+            let s = &mut app.settings;
+            ui.toggle_value(&mut s.loop_playback, RichText::new("⟳ Loop").size(15.0))
+                .on_hover_text("Repeat the phrase until stopped");
+            ui.separator();
+            ui.add(DragValue::new(&mut s.bpm).range(30..=300).suffix(" BPM"))
+                .on_hover_text("Tempo — drag or click to type");
+            ui.add_enabled_ui(s.selection.kind != ViewKind::Chord, |ui| {
+                caption(ui, "Notes/beat");
+                for n in 1..=4 {
+                    ui.selectable_value(&mut s.notes_per_beat, n, n.to_string())
+                        .on_hover_text(["Quarter notes", "Eighth notes", "Triplets", "Sixteenth notes"][n as usize - 1]);
+                }
+            });
+            ui.separator();
+            ui.toggle_value(&mut s.metronome, "♩ Click").on_hover_text("Metronome click on every beat");
         });
         card(ui, |ui| {
             caption(ui, "Show");

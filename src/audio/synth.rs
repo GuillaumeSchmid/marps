@@ -1,14 +1,21 @@
-//! Karplus-Strong plucked-string synthesis and a small note scheduler.
+//! Karplus-Strong plucked-string synthesis, metronome clicks and a small scheduler.
 //! Runs entirely on the audio thread; no allocation in steady state besides voice start.
 
-/// A note to start at a given sample time. Notes sharing a `group` cut each
-/// other off, like two notes played on the same string.
+/// What a scheduled event sounds like.
 #[derive(Clone, Copy, Debug)]
-pub struct ScheduledNote {
+pub enum Sound {
+    /// A plucked string. Plucks sharing a `group` cut each other off, like two
+    /// notes played on the same string.
+    Pluck { midi: u8, velocity: f32, group: Option<u8> },
+    /// A metronome tick; accented ones are higher and louder.
+    Click { accent: bool },
+}
+
+/// A sound to start at a given sample time.
+#[derive(Clone, Copy, Debug)]
+pub struct Scheduled {
     pub at_sample: u64,
-    pub midi: u8,
-    pub velocity: f32,
-    pub group: Option<u8>,
+    pub sound: Sound,
 }
 
 struct Voice {
@@ -91,11 +98,49 @@ impl Voice {
     }
 }
 
+/// A short decaying sine blip.
+struct Click {
+    phase: f32,
+    step: f32,
+    gain: f32,
+    decay: f32,
+}
+
+impl Click {
+    fn new(sr: f32, accent: bool) -> Self {
+        let freq = if accent { 1760.0 } else { 1320.0 };
+        Click {
+            phase: 0.0,
+            step: std::f32::consts::TAU * freq / sr,
+            gain: if accent { 0.45 } else { 0.3 },
+            // ~25 ms to -60 dB.
+            decay: 10f32.powf(-3.0 / (0.025 * sr)),
+        }
+    }
+
+    fn next(&mut self) -> f32 {
+        let s = self.phase.sin() * self.gain;
+        self.phase = (self.phase + self.step) % std::f32::consts::TAU;
+        self.gain *= self.decay;
+        s
+    }
+}
+
+/// A cycle of sounds repeated every `period` samples until stopped.
+struct Loop {
+    /// Onsets relative to the start of a cycle.
+    cycle: Vec<Scheduled>,
+    period: u64,
+    next: u64,
+}
+
 pub struct Synth {
     sr: f32,
     clock: u64,
     voices: Vec<Voice>,
-    pending: Vec<ScheduledNote>,
+    clicks: Vec<Click>,
+    pending: Vec<Scheduled>,
+    looping: Option<Loop>,
     seed: u32,
     /// One-pole low-pass on the output, softening the bright pick attack.
     tone: f32,
@@ -107,7 +152,9 @@ impl Synth {
             sr: sample_rate,
             clock: 0,
             voices: Vec::with_capacity(64),
-            pending: Vec::with_capacity(128),
+            clicks: Vec::with_capacity(8),
+            pending: Vec::with_capacity(256),
+            looping: None,
             seed: 0x9E37_79B9,
             tone: 0.0,
         }
@@ -121,29 +168,50 @@ impl Synth {
         self.clock
     }
 
-    pub fn schedule(&mut self, notes: impl IntoIterator<Item = ScheduledNote>) {
-        self.pending.extend(notes);
+    pub fn schedule(&mut self, sounds: impl IntoIterator<Item = Scheduled>) {
+        self.pending.extend(sounds);
     }
 
-    /// Drop pending notes and fade out everything sounding.
+    /// Play `cycle` (onsets relative to its start) from sample `first`, again every `period` samples.
+    pub fn repeat(&mut self, cycle: Vec<Scheduled>, first: u64, period: u64) {
+        self.looping = Some(Loop { cycle, period: period.max(1), next: first });
+    }
+
+    /// Drop pending sounds and any loop, and fade out everything sounding.
     pub fn stop(&mut self) {
         self.pending.clear();
+        self.looping = None;
         let sr = self.sr;
         self.voices.iter_mut().for_each(|v| v.released(sr));
     }
 
     pub fn next_sample(&mut self) -> f32 {
         let now = self.clock;
+        if let Some(l) = &mut self.looping
+            && now >= l.next
+        {
+            let start = l.next;
+            self.pending.extend(l.cycle.iter().map(|s| Scheduled { at_sample: start + s.at_sample, ..*s }));
+            l.next += l.period;
+        }
         let mut i = 0;
         while i < self.pending.len() {
             if self.pending[i].at_sample <= now {
-                let n = self.pending.swap_remove(i);
                 let sr = self.sr;
-                if n.group.is_some() {
-                    self.voices.iter_mut().filter(|v| v.group == n.group).for_each(|v| v.released(sr));
-                }
-                if self.voices.len() < 64 {
-                    self.voices.push(Voice::new(sr, n.midi, n.velocity, n.group, &mut self.seed));
+                match self.pending.swap_remove(i).sound {
+                    Sound::Pluck { midi, velocity, group } => {
+                        if group.is_some() {
+                            self.voices.iter_mut().filter(|v| v.group == group).for_each(|v| v.released(sr));
+                        }
+                        if self.voices.len() < 64 {
+                            self.voices.push(Voice::new(sr, midi, velocity, group, &mut self.seed));
+                        }
+                    }
+                    Sound::Click { accent } => {
+                        if self.clicks.len() < 8 {
+                            self.clicks.push(Click::new(sr, accent));
+                        }
+                    }
                 }
             } else {
                 i += 1;
@@ -153,10 +221,54 @@ impl Synth {
         for v in &mut self.voices {
             out += v.next();
         }
+        let mut click = 0.0;
+        for c in &mut self.clicks {
+            click += c.next();
+        }
         let sr = self.sr;
         self.voices.retain(|v| !v.finished(sr));
+        self.clicks.retain(|c| c.gain > 1e-4);
         self.clock += 1;
         self.tone += 0.55 * (out - self.tone);
-        (self.tone * 1.2).tanh()
+        // Clicks skip the tone filter so they stay crisp.
+        (self.tone * 1.2 + click).tanh()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn click_at(at_sample: u64) -> Scheduled {
+        Scheduled { at_sample, sound: Sound::Click { accent: false } }
+    }
+
+    /// Sample indices at which a new click starts, over `n` samples.
+    fn click_onsets(synth: &mut Synth, n: u64) -> Vec<u64> {
+        let mut onsets = Vec::new();
+        for i in 0..n {
+            let before = synth.clicks.len();
+            synth.next_sample();
+            if synth.clicks.len() > before {
+                onsets.push(i);
+            }
+        }
+        onsets
+    }
+
+    #[test]
+    fn repeat_restarts_the_cycle_every_period() {
+        let mut synth = Synth::new(1000.0);
+        synth.repeat(vec![click_at(0), click_at(30)], 10, 100);
+        assert_eq!(click_onsets(&mut synth, 250), [10, 40, 110, 140, 210, 240]);
+    }
+
+    #[test]
+    fn stop_ends_a_loop() {
+        let mut synth = Synth::new(1000.0);
+        synth.repeat(vec![click_at(0)], 0, 50);
+        assert_eq!(click_onsets(&mut synth, 60), [0, 50]);
+        synth.stop();
+        assert!(click_onsets(&mut synth, 200).is_empty());
     }
 }
