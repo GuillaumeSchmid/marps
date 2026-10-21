@@ -9,7 +9,7 @@ use crate::theory::engine::ViewKind;
 use crate::theory::note::{DEGREE_CLASS_LABELS, Note};
 use crate::theory::scale::{ScaleFamily, ScaleId};
 use crate::theory::tuning::TUNINGS;
-use egui::{ComboBox, CornerRadius, DragValue, Frame, Margin, RichText, Ui};
+use egui::{ComboBox, CornerRadius, DragValue, Frame, Margin, RichText, Slider, Ui};
 
 fn card<R>(ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> R {
     Frame::new()
@@ -149,6 +149,24 @@ pub fn options_bar(app: &mut ScaleViewApp, ui: &mut Ui) {
             });
             ui.separator();
             ui.toggle_value(&mut s.metronome, "♩ Click").on_hover_text("Metronome click on every beat");
+            ui.separator();
+            ui.label(RichText::new("Guitar").small().color(TEXT_DIM));
+            ui.spacing_mut().slider_width = 64.0;
+            let mix = ui.add(Slider::new(&mut s.click_mix, 0.0..=1.0).show_value(false));
+            let (guitar, click) = s.mix_gains();
+            let mix = mix.on_hover_text(format!(
+                "Guitar {:.0}% · Click {:.0}% — double-click to centre",
+                guitar * 100.0,
+                click * 100.0
+            ));
+            if mix.double_clicked() {
+                s.click_mix = 0.5;
+            }
+            ui.label(RichText::new("Click").small().color(TEXT_DIM));
+            if mix.changed() || mix.double_clicked() {
+                let (guitar, click) = s.mix_gains();
+                app.audio.set_mix(guitar, click);
+            }
         });
         card(ui, |ui| {
             caption(ui, "Show");

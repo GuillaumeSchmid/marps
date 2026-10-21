@@ -92,6 +92,8 @@ impl ScaleViewApp {
             chord_category,
         };
         app.sync_shapes();
+        let (guitar, click) = app.settings.mix_gains();
+        app.audio.set_mix(guitar, click);
         app
     }
 

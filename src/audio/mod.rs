@@ -48,6 +48,7 @@ impl Phrase {
 enum Command {
     Play(Phrase),
     Pluck(PhraseNote),
+    Mix { guitar: f32, click: f32 },
     Stop,
 }
 
@@ -112,6 +113,11 @@ impl AudioEngine {
         let _ = self.tx.send(Command::Pluck(note));
     }
 
+    /// Set the guitar and metronome levels (0..=1).
+    pub fn set_mix(&self, guitar: f32, click: f32) {
+        let _ = self.tx.send(Command::Mix { guitar, click });
+    }
+
     pub fn stop(&self) {
         let _ = self.tx.send(Command::Stop);
     }
@@ -147,6 +153,7 @@ where
                 while let Ok(cmd) = rx.try_recv() {
                     match cmd {
                         Command::Stop => synth.stop(),
+                        Command::Mix { guitar, click } => synth.set_mix(guitar, click),
                         Command::Play(phrase) => {
                             synth.stop();
                             // Small offset so the first note is never late by a partial buffer.

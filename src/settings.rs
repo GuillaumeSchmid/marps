@@ -67,6 +67,8 @@ pub struct Settings {
     /// Notes played per beat (2 = eighth notes).
     pub notes_per_beat: u8,
     pub metronome: bool,
+    /// Balance from guitar only (0) through both at full level (0.5) to metronome only (1).
+    pub click_mix: f32,
     /// Repeat the phrase until stopped.
     pub loop_playback: bool,
     /// Shapes toggled on for each selection key, so they come back as they were left.
@@ -92,6 +94,7 @@ impl Default for Settings {
             bpm: 120,
             notes_per_beat: 2,
             metronome: true,
+            click_mix: 0.5,
             loop_playback: false,
             last_shapes: BTreeMap::new(),
         }
@@ -111,7 +114,27 @@ impl Settings {
         60.0 / self.bpm.max(1) as f32
     }
 
+    /// (guitar, metronome) levels for `click_mix`, crossfader style.
+    pub fn mix_gains(&self) -> (f32, f32) {
+        let m = self.click_mix.clamp(0.0, 1.0);
+        ((2.0 * (1.0 - m)).min(1.0), (2.0 * m).min(1.0))
+    }
+
     pub fn notes_per_sec(&self) -> f32 {
         self.notes_per_beat.max(1) as f32 / self.beat_secs()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mix_is_both_full_in_the_middle_and_one_only_at_the_ends() {
+        let gains = |click_mix| Settings { click_mix, ..Settings::default() }.mix_gains();
+        assert_eq!(gains(0.5), (1.0, 1.0));
+        assert_eq!(gains(0.0), (1.0, 0.0));
+        assert_eq!(gains(1.0), (0.0, 1.0));
+        assert_eq!(gains(0.75), (0.5, 1.0));
     }
 }

@@ -144,6 +144,8 @@ pub struct Synth {
     seed: u32,
     /// One-pole low-pass on the output, softening the bright pick attack.
     tone: f32,
+    guitar_gain: f32,
+    click_gain: f32,
 }
 
 impl Synth {
@@ -157,7 +159,15 @@ impl Synth {
             looping: None,
             seed: 0x9E37_79B9,
             tone: 0.0,
+            guitar_gain: 1.0,
+            click_gain: 1.0,
         }
+    }
+
+    /// Output levels (0..=1) of the plucked strings and of the metronome.
+    pub fn set_mix(&mut self, guitar: f32, click: f32) {
+        self.guitar_gain = guitar.clamp(0.0, 1.0);
+        self.click_gain = click.clamp(0.0, 1.0);
     }
 
     pub fn sample_rate(&self) -> f32 {
@@ -231,7 +241,7 @@ impl Synth {
         self.clock += 1;
         self.tone += 0.55 * (out - self.tone);
         // Clicks skip the tone filter so they stay crisp.
-        (self.tone * 1.2 + click).tanh()
+        (self.tone * 1.2 * self.guitar_gain + click * self.click_gain).tanh()
     }
 }
 
