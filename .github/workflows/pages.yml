@@ -1,12 +1,12 @@
 # Builds the browser version in release mode and publishes dist/ to the
-# marps.github.io repository (its `main` branch serves the site).
+# marps.github.io repository (its `master` branch serves the site).
 # Plain shell steps only: this repo does not allow third-party actions.
 #
 # One-time setup:
 #   1. ssh-keygen -t ed25519 -N "" -C marps-pages -f marps-pages
 #   2. In marps.github.io: Settings → Deploy keys → add marps-pages.pub with write access.
 #   3. In this repo: Settings → Secrets → Actions → PAGES_DEPLOY_KEY = contents of marps-pages.
-#   4. In marps.github.io: Settings → Pages → deploy from branch `main`, folder `/ (root)`.
+#   4. In marps.github.io: Settings → Pages → deploy from branch `master`, folder `/ (root)`.
 name: Publish site
 
 on:
@@ -58,8 +58,8 @@ jobs:
           ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
 
           # Keep the site repo's history: replace its files with dist/ in a new commit.
-          git clone -q --depth 1 --branch main "git@github.com:${PAGES_REPO}.git" site \
-            || { git init -q -b main site && git -C site remote add origin "git@github.com:${PAGES_REPO}.git"; }
+          git clone -q --depth 1 --branch master "git@github.com:${PAGES_REPO}.git" site \
+            || { git init -q -b master site && git -C site remote add origin "git@github.com:${PAGES_REPO}.git"; }
           find site -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
           cp -r dist/. site/
           rm -f site/.trunk-lock
@@ -73,5 +73,5 @@ jobs:
             echo "Site unchanged."
           else
             git commit -q -m "Publish ${GITHUB_SHA}"
-            git push -q origin main
+            git push -q origin master
           fi
