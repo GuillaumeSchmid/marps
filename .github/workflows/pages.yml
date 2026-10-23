@@ -1,0 +1,53 @@
+# Builds the browser version in release mode and publishes dist/ to the
+# marps.github.io repository (its `main` branch serves the site).
+#
+# One-time setup:
+#   1. ssh-keygen -t ed25519 -N "" -C marps-pages -f marps-pages
+#   2. In marps.github.io: Settings → Deploy keys → add marps-pages.pub with write access.
+#   3. In this repo: Settings → Secrets → Actions → PAGES_DEPLOY_KEY = contents of marps-pages.
+#   4. In marps.github.io: Settings → Pages → deploy from branch `main`, folder `/ (root)`.
+name: Publish site
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  TRUNK_VERSION: v0.22.0
+  # Override with a repository variable if marps.github.io lives under another owner.
+  PAGES_REPO: ${{ vars.PAGES_REPO || format('{0}/marps.github.io', github.repository_owner) }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install trunk
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -sSfL "https://github.com/trunk-rs/trunk/releases/download/${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar -xz -C "$HOME/.local/bin" trunk
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build
+        run: trunk build --release
+
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          deploy_key: ${{ secrets.PAGES_DEPLOY_KEY }}
+          external_repository: ${{ env.PAGES_REPO }}
+          publish_branch: main
+          publish_dir: ./dist
+          commit_message: Publish ${{ github.sha }}
