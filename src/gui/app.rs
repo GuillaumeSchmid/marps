@@ -44,7 +44,7 @@ struct PhraseSource {
     looping: bool,
 }
 
-pub struct ScaleViewApp {
+pub struct MarpsApp {
     pub engine: ScaleEngine,
     pub audio: AudioEngine,
     pub settings: Settings,
@@ -65,7 +65,7 @@ pub struct ScaleViewApp {
     pub chord_category: ChordCategory,
 }
 
-impl ScaleViewApp {
+impl MarpsApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         theme::apply(&cc.egui_ctx);
         let settings = Settings::load();
@@ -315,7 +315,7 @@ impl ScaleViewApp {
     }
 }
 
-impl eframe::App for ScaleViewApp {
+impl eframe::App for MarpsApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         self.shortcuts(&ctx);

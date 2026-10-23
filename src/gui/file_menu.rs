@@ -1,5 +1,5 @@
-//! File menu: import/export the shapes library as a zipped `.svshapes` file
-//! (`.svforms` files from before the rename still import).
+//! File menu: import/export the shapes library as a zipped `.marpshapes` file
+//! (`.svshapes` and `.svforms` files from before the renames still import).
 //! On desktop through a file dialog; in the browser as an upload and a download.
 
 use crate::shapes::ShapeLibrary;
@@ -23,8 +23,11 @@ impl FileMenu {
     }
 }
 
+const EXTENSION: &str = "marpshapes";
+const LEGACY_EXTENSIONS: [&str; 2] = ["svshapes", "svforms"];
+
 fn export_file_name() -> String {
-    format!("shapes-{}.svshapes", today_ymd())
+    format!("shapes-{}.{EXTENSION}", today_ymd())
 }
 
 fn import_bytes(bytes: &[u8], shapes: &mut ShapeLibrary) {
@@ -37,11 +40,14 @@ fn import_bytes(bytes: &[u8], shapes: &mut ShapeLibrary) {
 #[cfg(not(target_arch = "wasm32"))]
 mod platform {
     use super::*;
+    use std::path::PathBuf;
 
     enum FileOp {
         Import,
         Export,
     }
+
+    const FILTER_NAME: &str = "Marps shapes";
 
     pub struct FileMenu {
         dialog: egui_file_dialog::FileDialog,
@@ -55,16 +61,17 @@ mod platform {
 
         pub(super) fn start_import(&mut self, _ctx: &Context) {
             self.dialog = egui_file_dialog::FileDialog::new()
-                .add_file_filter_extensions("ScaleView shapes", vec!["svshapes", "svforms"]);
+                .add_file_filter_extensions(FILTER_NAME, [EXTENSION].into_iter().chain(LEGACY_EXTENSIONS).collect());
             self.dialog.pick_file();
             self.op = Some(FileOp::Import);
         }
 
         pub(super) fn start_export(&mut self, _ctx: &Context) {
+            // `default_save_extension` takes the filter's name, not the extension.
             self.dialog = egui_file_dialog::FileDialog::new()
-                .add_save_extension("ScaleView shapes", "svshapes")
-                .default_save_extension("svshapes")
-                .default_file_name(export_file_name().trim_end_matches(".svshapes"));
+                .add_save_extension(FILTER_NAME, EXTENSION)
+                .default_save_extension(FILTER_NAME)
+                .default_file_name(export_file_name().trim_end_matches(&format!(".{EXTENSION}")));
             self.dialog.save_file();
             self.op = Some(FileOp::Export);
         }
@@ -75,6 +82,7 @@ mod platform {
             let Some(path) = self.dialog.take_picked() else { return };
             match self.op.take() {
                 Some(FileOp::Export) => {
+                    let path = with_extension(path);
                     if let Err(e) = shapes.export_zip().and_then(|bytes| std::fs::write(&path, bytes)) {
                         log_error(&format!("could not export shapes to {}: {e}", path.display()));
                     }
@@ -85,6 +93,29 @@ mod platform {
                 },
                 None => {}
             }
+        }
+    }
+
+    /// Exports always end in `.marpshapes`, so the Import dialog lists them
+    /// even when the "Any" file type was picked when saving.
+    fn with_extension(path: PathBuf) -> PathBuf {
+        if path.extension().is_some_and(|e| e.eq_ignore_ascii_case(EXTENSION)) {
+            return path;
+        }
+        let mut name = path.into_os_string();
+        name.push(format!(".{EXTENSION}"));
+        name.into()
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn export_path_gets_the_extension_once() {
+            assert_eq!(with_extension("a/shapes-2026-10-21".into()), PathBuf::from("a/shapes-2026-10-21.marpshapes"));
+            assert_eq!(with_extension("a/b.marpshapes".into()), PathBuf::from("a/b.marpshapes"));
+            assert_eq!(with_extension("a/my.shapes".into()), PathBuf::from("a/my.shapes.marpshapes"));
         }
     }
 }
@@ -157,7 +188,8 @@ mod platform {
     fn open_upload(ctx: Context, slot: Rc<RefCell<Option<Vec<u8>>>>) -> Result<(), wasm_bindgen::JsValue> {
         let input: web_sys::HtmlInputElement = document().create_element("input")?.dyn_into()?;
         input.set_type("file");
-        input.set_accept(".svshapes,.svforms");
+        let accept: Vec<String> = [EXTENSION].into_iter().chain(LEGACY_EXTENSIONS).map(|e| format!(".{e}")).collect();
+        input.set_accept(&accept.join(","));
         let picker = input.clone();
         let on_change = Closure::once_into_js(move || {
             let Some(file) = picker.files().and_then(|f| f.get(0)) else { return };

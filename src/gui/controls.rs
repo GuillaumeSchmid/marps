@@ -1,6 +1,6 @@
 //! Selection bar (above the neck) and option bar (below it).
 
-use super::app::ScaleViewApp;
+use super::app::MarpsApp;
 use super::theme::{self, CARD, TEXT_DIM, caption};
 use crate::settings::{DEFAULT_COLORS, LabelMode, NeckWood};
 use crate::theory::caged::CagedShape;
@@ -20,10 +20,10 @@ fn card<R>(ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> R {
         .inner
 }
 
-pub fn selection_bar(app: &mut ScaleViewApp, ui: &mut Ui) {
+pub fn selection_bar(app: &mut MarpsApp, ui: &mut Ui) {
     ui.horizontal_wrapped(|ui| {
         app.file_menu.menu_button(ui);
-        ui.label(RichText::new("ScaleView").strong().size(18.0).color(theme::ACCENT));
+        ui.label(RichText::new("Marps").strong().size(18.0).color(theme::ACCENT));
         ui.add_space(10.0);
         let sel = &mut app.settings.selection;
         for kind in ViewKind::ALL {
@@ -48,7 +48,7 @@ pub fn selection_bar(app: &mut ScaleViewApp, ui: &mut Ui) {
     scale_picker(app, ui);
 }
 
-fn chord_picker(app: &mut ScaleViewApp, ui: &mut Ui) {
+fn chord_picker(app: &mut MarpsApp, ui: &mut Ui) {
     ui.horizontal_wrapped(|ui| {
         caption(ui, if app.settings.selection.kind == ViewKind::Chord { "Chord" } else { "Arpeggio" });
         for cat in ChordCategory::ALL {
@@ -66,7 +66,7 @@ fn chord_picker(app: &mut ScaleViewApp, ui: &mut Ui) {
     });
 }
 
-fn scale_picker(app: &mut ScaleViewApp, ui: &mut Ui) {
+fn scale_picker(app: &mut MarpsApp, ui: &mut Ui) {
     let kind = app.settings.selection.kind;
     ui.horizontal_wrapped(|ui| {
         caption(ui, if kind == ViewKind::Scale { "Scale" } else { "Underlying scale" });
@@ -123,7 +123,7 @@ fn scale_picker(app: &mut ScaleViewApp, ui: &mut Ui) {
     }
 }
 
-pub fn options_bar(app: &mut ScaleViewApp, ui: &mut Ui) {
+pub fn options_bar(app: &mut MarpsApp, ui: &mut Ui) {
     ui.horizontal_wrapped(|ui| {
         card(ui, |ui| {
             let now = ui.input(|i| i.time);
@@ -209,7 +209,7 @@ pub fn options_bar(app: &mut ScaleViewApp, ui: &mut Ui) {
     });
 }
 
-pub fn color_editor(app: &mut ScaleViewApp, ui: &mut Ui) {
+pub fn color_editor(app: &mut MarpsApp, ui: &mut Ui) {
     card(ui, |ui| {
         ui.horizontal_wrapped(|ui| {
             caption(ui, "Degree colours");

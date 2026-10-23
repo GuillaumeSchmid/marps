@@ -1,12 +1,12 @@
 //! Above the neck: the selection's name, its formula as clickable tone chips,
 //! and a status line (active shape, recording, audio problems).
 
-use super::app::ScaleViewApp;
+use super::app::MarpsApp;
 use super::theme::{self, ACCENT, CARD, RECORD, TEXT, TEXT_DIM, text_on};
 use crate::theory::engine::ViewKind;
 use egui::{Align2, Color32, CornerRadius, FontId, RichText, Sense, Stroke, StrokeKind, vec2};
 
-pub fn show(app: &mut ScaleViewApp, ui: &mut egui::Ui) {
+pub fn show(app: &mut MarpsApp, ui: &mut egui::Ui) {
     let sel = app.settings.selection.clone();
     ui.horizontal(|ui| {
         ui.label(RichText::new(&app.model.title).heading().strong());

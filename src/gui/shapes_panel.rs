@@ -1,13 +1,13 @@
 //! Shapes: list, switch, record, edit and delete user-defined fingerings.
 
-use super::app::{Recording, ScaleViewApp};
+use super::app::{Recording, MarpsApp};
 use super::theme::{ACCENT, CARD, RECORD, TEXT_DIM, caption};
 use crate::shapes::Shape;
 use crate::theory::engine::ViewKind;
 use egui::{CornerRadius, Frame, Margin, RichText, Ui};
 use std::collections::BTreeSet;
 
-pub fn show(app: &mut ScaleViewApp, ui: &mut Ui) {
+pub fn show(app: &mut MarpsApp, ui: &mut Ui) {
     Frame::new()
         .fill(CARD)
         .corner_radius(CornerRadius::same(8))
@@ -32,7 +32,7 @@ pub fn show(app: &mut ScaleViewApp, ui: &mut Ui) {
         });
 }
 
-fn shape_list(app: &mut ScaleViewApp, ui: &mut Ui) {
+fn shape_list(app: &mut MarpsApp, ui: &mut Ui) {
     if ui.selectable_label(app.active_shapes.is_empty(), "All notes").clicked() {
         app.clear_shapes();
     }
@@ -77,18 +77,18 @@ fn shape_list(app: &mut ScaleViewApp, ui: &mut Ui) {
 }
 
 /// Active shapes' names, so a mutation that shifts indices can re-resolve them afterward.
-fn active_names(app: &ScaleViewApp) -> BTreeSet<String> {
+fn active_names(app: &MarpsApp) -> BTreeSet<String> {
     app.active_shapes.iter().filter_map(|&i| app.shapes_here().get(i)).map(|f| f.name.clone()).collect()
 }
 
 /// Indices of shapes whose name is in `names`, under the current key.
-fn indices_named(app: &ScaleViewApp, names: &BTreeSet<String>) -> BTreeSet<usize> {
+fn indices_named(app: &MarpsApp, names: &BTreeSet<String>) -> BTreeSet<usize> {
     app.shapes_here().iter().enumerate().filter(|(_, f)| names.contains(&f.name)).map(|(i, _)| i).collect()
 }
 
 /// After a drag-drop reorder, keep whatever shapes were active still active
 /// (their indices may have shifted) by re-resolving them by name.
-fn reorder_and_reselect(app: &mut ScaleViewApp, from: usize, to: usize) {
+fn reorder_and_reselect(app: &mut MarpsApp, from: usize, to: usize) {
     if from == to {
         return;
     }
@@ -100,14 +100,14 @@ fn reorder_and_reselect(app: &mut ScaleViewApp, from: usize, to: usize) {
 
 /// Delete shape `i`, then re-resolve the remaining active shapes by name
 /// (deleting shifts every later index down by one).
-fn delete_and_reresolve(app: &mut ScaleViewApp, i: usize) {
+fn delete_and_reresolve(app: &mut MarpsApp, i: usize) {
     let key = app.shapes_key.clone();
     let names = active_names(app);
     app.shapes.remove(&key, i);
     app.set_active_shapes(indices_named(app, &names));
 }
 
-fn recording_controls(app: &mut ScaleViewApp, ui: &mut Ui) {
+fn recording_controls(app: &mut MarpsApp, ui: &mut Ui) {
     let root_pc = app.settings.selection.root.pc();
     let key = app.shapes_key.clone();
     let rec = app.recording.as_mut().unwrap();

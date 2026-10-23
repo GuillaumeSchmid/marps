@@ -8,4 +8,4 @@ mod fretboard;
 mod header;
 mod theme;
 
-pub use app::ScaleViewApp;
+pub use app::MarpsApp;

@@ -1,4 +1,4 @@
-//! ScaleView — learn scales, arpeggios and chords on a 24-fret guitar neck.
+//! Marps — learn scales, arpeggios and chords on a 24-fret guitar neck.
 //!
 //! Layers, each with one job:
 //! - `theory`  — the ScaleEngine: notes, scales, chords, CAGED, fretboard model (pure).
@@ -17,15 +17,15 @@ mod theory;
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("ScaleView")
+            .with_title("Marps")
             .with_inner_size([1600.0, 820.0])
             .with_min_inner_size([1000.0, 600.0]),
         ..Default::default()
     };
-    eframe::run_native("ScaleView", options, Box::new(|cc| Ok(Box::new(gui::ScaleViewApp::new(cc)))))
+    eframe::run_native("Marps", options, Box::new(|cc| Ok(Box::new(gui::MarpsApp::new(cc)))))
 }
 
-/// Browser entry point: mounts the app on the `<canvas id="scaleview">` in index.html.
+/// Browser entry point: mounts the app on the `<canvas id="marps">` in index.html.
 #[cfg(target_arch = "wasm32")]
 fn main() {
     use eframe::wasm_bindgen::JsCast as _;
@@ -34,17 +34,17 @@ fn main() {
     wasm_bindgen_futures::spawn_local(async {
         let document = web_sys::window().and_then(|w| w.document()).expect("no document");
         let canvas = document
-            .get_element_by_id("scaleview")
-            .expect("no #scaleview canvas")
+            .get_element_by_id("marps")
+            .expect("no #marps canvas")
             .dyn_into::<web_sys::HtmlCanvasElement>()
-            .expect("#scaleview is not a canvas");
+            .expect("#marps is not a canvas");
         let result = eframe::WebRunner::new()
-            .start(canvas, eframe::WebOptions::default(), Box::new(|cc| Ok(Box::new(gui::ScaleViewApp::new(cc)))))
+            .start(canvas, eframe::WebOptions::default(), Box::new(|cc| Ok(Box::new(gui::MarpsApp::new(cc)))))
             .await;
         if let Some(loading) = document.get_element_by_id("loading") {
             match result {
                 Ok(()) => loading.remove(),
-                Err(e) => loading.set_inner_html(&format!("ScaleView failed to start: {e:?}")),
+                Err(e) => loading.set_inner_html(&format!("Marps failed to start: {e:?}")),
             }
         }
     });

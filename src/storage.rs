@@ -1,4 +1,5 @@
-//! Where settings and shapes live: ~/.config/scaleview on desktop, localStorage in the browser.
+//! Where settings and shapes live: ~/.config/marps on desktop, localStorage in the browser.
+//! Files saved before the rename from ScaleView are still read from the old location.
 
 use serde::{Serialize, de::DeserializeOwned};
 
@@ -23,6 +24,13 @@ pub fn save<T: Serialize>(file: &str, value: &T) {
     }
 }
 
+const APP: &str = "marps";
+const LEGACY_APP: &str = "scaleview";
+
+fn read(file: &str) -> Option<String> {
+    read_from(APP, file).or_else(|| read_from(LEGACY_APP, file))
+}
+
 pub fn log_error(msg: &str) {
     #[cfg(not(target_arch = "wasm32"))]
     eprintln!("{msg}");
@@ -31,18 +39,18 @@ pub fn log_error(msg: &str) {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn path(file: &str) -> Option<std::path::PathBuf> {
-    directories::ProjectDirs::from("", "", "scaleview").map(|d| d.config_dir().join(file))
+fn path(app: &str, file: &str) -> Option<std::path::PathBuf> {
+    directories::ProjectDirs::from("", "", app).map(|d| d.config_dir().join(file))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn read(file: &str) -> Option<String> {
-    path(file).and_then(|p| std::fs::read_to_string(p).ok())
+fn read_from(app: &str, file: &str) -> Option<String> {
+    path(app, file).and_then(|p| std::fs::read_to_string(p).ok())
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 fn write(file: &str, contents: &str) -> Result<(), String> {
-    let p = path(file).ok_or("no config directory")?;
+    let p = path(APP, file).ok_or("no config directory")?;
     p.parent()
         .map(std::fs::create_dir_all)
         .transpose()
@@ -56,14 +64,14 @@ fn local_storage() -> Option<web_sys::Storage> {
 }
 
 #[cfg(target_arch = "wasm32")]
-fn read(file: &str) -> Option<String> {
-    local_storage()?.get_item(&format!("scaleview/{file}")).ok()?
+fn read_from(app: &str, file: &str) -> Option<String> {
+    local_storage()?.get_item(&format!("{app}/{file}")).ok()?
 }
 
 #[cfg(target_arch = "wasm32")]
 fn write(file: &str, contents: &str) -> Result<(), String> {
     local_storage()
         .ok_or("localStorage unavailable")?
-        .set_item(&format!("scaleview/{file}"), contents)
+        .set_item(&format!("{APP}/{file}"), contents)
         .map_err(|e| format!("{e:?}"))
 }
