@@ -1,12 +1,13 @@
 # Builds the browser version in release mode and publishes dist/ to the
-# marps.github.io repository (its `master` branch serves the site).
+# marps/ folder of the <owner>.github.io repository (its `master` branch serves
+# the site), so the app lives at https://<owner>.github.io/marps/.
 # Plain shell steps only: this repo does not allow third-party actions.
 #
 # One-time setup:
 #   1. ssh-keygen -t ed25519 -N "" -C marps-pages -f marps-pages
-#   2. In marps.github.io: Settings → Deploy keys → add marps-pages.pub with write access.
+#   2. In <owner>.github.io: Settings → Deploy keys → add marps-pages.pub with write access.
 #   3. In this repo: Settings → Secrets → Actions → PAGES_DEPLOY_KEY = contents of marps-pages.
-#   4. In marps.github.io: Settings → Pages → deploy from branch `master`, folder `/ (root)`.
+#   4. In <owner>.github.io: Settings → Pages → deploy from branch `master`, folder `/ (root)`.
 name: Publish site
 
 on:
@@ -20,8 +21,9 @@ concurrency:
 
 env:
   TRUNK_VERSION: v0.22.0
-  # Override with a repository variable if marps.github.io lives under another owner.
-  PAGES_REPO: ${{ vars.PAGES_REPO || format('{0}/marps.github.io', github.repository_owner) }}
+  # Override with a repository variable to publish to another site repository.
+  PAGES_REPO: ${{ vars.PAGES_REPO || format('{0}/{0}.github.io', github.repository_owner) }}
+  PAGES_DIR: marps
 
 jobs:
   publish:
@@ -57,12 +59,12 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
 
-          # Keep the site repo's history: replace its files with dist/ in a new commit.
+          # Keep the site repo's history and other content: replace only $PAGES_DIR.
           git clone -q --depth 1 --branch master "git@github.com:${PAGES_REPO}.git" site \
             || { git init -q -b master site && git -C site remote add origin "git@github.com:${PAGES_REPO}.git"; }
-          find site -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-          cp -r dist/. site/
-          rm -f site/.trunk-lock
+          rm -rf "site/${PAGES_DIR}"
+          cp -r dist "site/${PAGES_DIR}"
+          rm -f "site/${PAGES_DIR}/.trunk-lock"
           touch site/.nojekyll
 
           cd site
